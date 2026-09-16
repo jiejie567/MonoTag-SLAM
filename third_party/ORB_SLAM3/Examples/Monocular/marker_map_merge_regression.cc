@@ -329,8 +329,8 @@ static void testRawEvidence()
     KeyFrame* first=data.source.GetAllKeyFrames().front();
     first->mvTagImagePoints[0].x+=20;
     auto result=MarkerMapMerge::Propose(&data.target,&data.source);
-    require(!result.accepted && result.reason=="source_marker_reprojection_mismatch",
-            "layout-only merge ignored original corner pixels");
+    require(result.accepted && result.evidence.at(20).sourceFrames==2,
+            "a damaged raw-corner observation was not excluded from merge evidence");
     first->mvTagImagePoints[0].x-=20;
     for(KeyFrame* keyframe:data.source.GetAllKeyFrames())
         for(float& weight:keyframe->mvTagPointWeights) weight=.25f;

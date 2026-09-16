@@ -14,7 +14,25 @@ Machine-specific binaries are not committed. The hash is included to identify th
 
 ## Validation status
 
-The focused production regression set passed on Ubuntu 24.04: 51 passed and 1 skipped. A wider historical suite contains five known source/test contract mismatches in legacy fallback and proposal tests; those tests are retained rather than hidden. They do not authorize silently enabling rejected experimental paths.
+The portable release gate is:
+
+```bash
+./.venv/bin/python scripts/run_release_smoke.py
+```
+
+It currently passes 140 tests on a clean Ubuntu 24.04 source checkout. It
+covers marker admission and temporal replay, wrist precision/rejection,
+geometry quality, metric re-anchoring, native-source recovery and loop queues,
+final-map and hybrid replay, the local range-capable replay server, and build
+and processing-host contracts. All six native release regressions built and
+passed on Ubuntu 24.04; these include 14 coordinator cases and 10 map-merge
+cases. The broader historical Python suite retains stale fallback and proposal
+source-contract tests rather than hiding them; it is not the release gate and
+does not authorize silently enabling rejected experiments.
+
+A clean-source Ubuntu smoke rebuild should be interpreted separately from the
+frozen paper binary: rebuilding validates portability, whereas the SHA-256
+above identifies the exact native library used for the reported measurements.
 
 The source release excludes raw or identifiable recordings, generated maps and caches, device-specific calibration, learned model weights, private host details, native binaries, and vocabulary data.
 

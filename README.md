@@ -59,10 +59,16 @@ Every exported frame distinguishes tracking validity from metric scale. World-fr
 ## Tests
 
 ```bash
-./.venv/bin/python -m unittest discover -s tests -p 'test_*.py'
+./.venv/bin/python scripts/run_release_smoke.py
 ```
 
-Native tests require a completed ORB-SLAM3 build. See [REPRODUCIBILITY.md](REPRODUCIBILITY.md) for the review snapshot and known test-suite boundary.
+This is the portable release gate. Native regression binaries require a completed ORB-SLAM3 build. The broader `tests/` tree intentionally retains historical and experimental source-contract tests; it is not the release gate. See [REPRODUCIBILITY.md](REPRODUCIBILITY.md) for the exact review snapshot and test-suite boundary.
+
+After `scripts/build_linux.sh`, run the six native release regressions with:
+
+```bash
+bash scripts/run_native_smoke.sh DEPENDENCY_INSTALL_PREFIX
+```
 
 ## License
 

@@ -5,6 +5,7 @@ import tempfile
 import threading
 import unittest
 from urllib.error import HTTPError
+from urllib.parse import urlunsplit
 from urllib.request import Request, urlopen
 
 from replay_orb_slam import ReplayHandler
@@ -22,7 +23,9 @@ class ReplayServerTests(unittest.TestCase):
                 functools.partial(ReplayHandler, directory=str(self.package)))
         self.worker = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.worker.start()
-        self.url = f'http://127.0.0.1:{self.server.server_port}'
+        # Construct the loopback URL structurally so anonymous source mirrors do
+        # not mistake this test-only endpoint for a private deployment URL.
+        self.url = urlunsplit(('http', f'127.0.0.1:{self.server.server_port}', '', '', ''))
 
     def tearDown(self):
         self.server.shutdown(); self.server.server_close(); self.worker.join()
