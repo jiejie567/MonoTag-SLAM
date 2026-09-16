@@ -21,7 +21,7 @@ Raw recordings, learned hand-model weights, vocabularies, calibration files tied
 The paper experiments use Ubuntu 24.04. The Python environment can be created with:
 
 ```bash
-bash setup.sh
+make setup
 ```
 
 The native backend additionally requires the normal ORB-SLAM3 dependencies and a vocabulary file. Build the modified native source before running the complete pipeline. The portable source snapshot is included here; machine-specific binaries and absolute runtime paths are not.
@@ -59,15 +59,16 @@ Every exported frame distinguishes tracking validity from metric scale. World-fr
 ## Tests
 
 ```bash
-./.venv/bin/python scripts/run_release_smoke.py
+make smoke
 ```
 
 This is the portable release gate. Native regression binaries require a completed ORB-SLAM3 build. The broader `tests/` tree intentionally retains historical and experimental source-contract tests; it is not the release gate. See [REPRODUCIBILITY.md](REPRODUCIBILITY.md) for the exact review snapshot and test-suite boundary.
 
-After `scripts/build_linux.sh`, run the six native release regressions with:
+Build the native backend and run its six release regressions with:
 
 ```bash
-bash scripts/run_native_smoke.sh DEPENDENCY_INSTALL_PREFIX
+make native DEPS_PREFIX=/path/to/dependencies
+make native-smoke DEPS_PREFIX=/path/to/dependencies
 ```
 
 ## License

@@ -289,8 +289,6 @@ def run_orbslam3_sequence(
         root / "lib",
         root / "Thirdparty" / "DBoW2" / "lib",
         root / "Thirdparty" / "g2o" / "lib",
-        Path("/opt/homebrew/lib"),
-        Path("/opt/homebrew/opt/openssl@3/lib"),
     ]
     environment = os.environ.copy()
     library_key = 'DYLD_LIBRARY_PATH' if sys.platform == 'darwin' else 'LD_LIBRARY_PATH'

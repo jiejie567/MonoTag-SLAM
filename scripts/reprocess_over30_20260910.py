@@ -124,7 +124,7 @@ def main():
     env.update(PYTHONUNBUFFERED='1', PYTHONDONTWRITEBYTECODE='1', OMP_NUM_THREADS='1', VECLIB_MAXIMUM_THREADS='1',
                SLAM_SEQUENCE_CACHE_DIR=str(OUT/'sequence_cache'),
                DYLD_LIBRARY_PATH=':'.join(map(str,[native/'lib', native/'Thirdparty/DBoW2/lib', native/'Thirdparty/g2o/lib',
-                   RUNTIME/'third_party/opencv-4.10-install/lib',RUNTIME/'third_party/Pangolin/install/lib',Path('/opt/homebrew/lib')])) )
+                   RUNTIME/'third_party/opencv-4.10-install/lib',RUNTIME/'third_party/Pangolin/install/lib'])) )
     publish(records)
     print('URL', json.loads((OUT/'server.json').read_text())['url'], flush=True)
     for r in records:
