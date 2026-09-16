@@ -1,0 +1,8 @@
+{
+  "schema": "monotag-processing-host/v1",
+  "processing_host": "ubuntu24",
+  "ssh_host": "user@ubuntu-host",
+  "project": "/path/to/MonoTag-SLAM",
+  "entrypoint": "process_monotag.py",
+  "allow_macos_processing": false
+}

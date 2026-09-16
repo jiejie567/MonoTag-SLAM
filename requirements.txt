@@ -1,0 +1,8 @@
+numpy==2.0.2
+opencv-contrib-python==4.12.0.88
+Pillow==11.3.0
+scipy==1.13.1
+mediapipe==0.10.35
+zstandard==0.25.0
+mcap==1.4.0
+mcap-ros2-support==0.5.7

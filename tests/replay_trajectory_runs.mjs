@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const html=fs.readFileSync(new URL('../aruco_track/slam_replay.html',import.meta.url),'utf8');
+const start=html.indexOf('const keyframeBirthMaps=new Map();');
+assert.ok(start>=0);
+const end=html.indexOf('\n}',html.indexOf('function frameTrajectoryMap',start))+2;
+const context=vm.createContext({});
+vm.runInContext(html.slice(start,end),context);
+const k=(id,t)=>[id,t,[0,0,0,0,0,0,1]];
+const a=k(1,0),b=k(2,1),c=k(3,2),d=k(4,3),e=k(5,4);
+context.rows=[{maps:[{id:0,keyframes:[a,b]}]},
+ {maps:[{id:0,keyframes:[a,b]},{id:2,keyframes:[c,d]}]},
+ {maps:[{id:0,keyframes:[a,b,c,d,e]}]}];
+vm.runInContext('indexKeyframeBirthMaps(rows)',context);
+const same=(x,y)=>{context.x=x;context.y=y;return vm.runInContext('sameTrajectoryRun(x,y)',context);};
+assert.ok(same(a,b));assert.ok(same(c,d));
+assert.ok(!same(b,c),'final map alias must not join old submaps');
+assert.ok(!same(d,e),'return to target map starts a new displayed run');
+assert.ok(!same(e,k(6,5)),'unknown birth must not invent continuity');
+context.f={process_map_id:'atlas_2',map_id:'atlas_0'};
+assert.equal(vm.runInContext('frameTrajectoryMap(f)',context),2,'current connector uses historical process map');
+context.f={map_id:'atlas_0'};assert.equal(vm.runInContext('frameTrajectoryMap(f)',context),0);
+context.f={map_id:'camera'};assert.equal(vm.runInContext('frameTrajectoryMap(f)',context),null);
+vm.runInContext('indexKeyframeBirthMaps([{maps:[]}])',context);
+assert.ok(!same(a,b),'new replay clears the prior index');
+assert.ok(html.includes('previousKeyframe&&!sameTrajectoryRun(previousKeyframe,k)'));
+const overlay=fs.readFileSync(new URL('../aruco_track/replay_event_overlay.js',import.meta.url),'utf8');
+assert.ok(overlay.includes('!sameTrajectoryRun(a,b)'));
+assert.ok(overlay.includes('sameTrajectoryRun(before[i-1],before[i])'));
+console.log('PASS historical submap segments, current-camera connector and correction overlays');

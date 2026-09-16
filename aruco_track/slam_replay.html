@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>原生 ORB · 真实建图过程</title>
+<style>
+*{box-sizing:border-box}html,body{width:100%;height:100%;overflow:hidden}body{margin:0;background:#f4f5f7;color:#182332;font:14px system-ui,sans-serif;display:grid;grid-template-rows:48px minmax(0,1fr)}
+header{padding:6px 12px;background:#fff;border-bottom:1px solid #ddd;display:flex;gap:12px;align-items:center;min-width:0;overflow:hidden}header strong{font-size:17px;white-space:nowrap}.toolbar{margin-left:auto;display:flex;gap:7px;align-items:center;white-space:nowrap}.scope{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+main{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:8px;padding:8px}.panel,.map-view{background:white;border:1px solid #d6dae0;border-radius:8px;overflow:hidden;min-width:0;min-height:0}
+.bar{padding:5px 8px;min-height:34px;display:flex;gap:8px;align-items:center;flex-wrap:nowrap;border-bottom:1px solid #eee;overflow:hidden}.bar .hint{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.bar button,.bar label,.bar strong{white-space:nowrap;flex:0 0 auto}button,select{font:inherit;padding:3px 7px}
+#video-panel,#trajectory-panel,.map-view{display:flex;flex-direction:column}#video-panel{position:relative}video{width:100%;height:100%;min-height:0;display:block;object-fit:contain;background:#111;flex:1}#video-loop-banner{display:none;position:absolute;left:14px;top:44px;max-width:calc(100% - 28px);padding:6px 10px;background:rgba(255,246,243,.96);border:1px solid #c66a72;border-radius:4px;color:#9d3845;font-weight:600;line-height:1.35;pointer-events:none;z-index:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}canvas{display:block}#trajectory{width:100%;height:auto;min-height:0;background:#fbfcfd;flex:1}#status{padding:5px 9px;max-height:44px;overflow:hidden;font-size:12px;font-variant-numeric:tabular-nums}
+.maps-panel,.map-grid{display:contents}.map-title{padding:5px 9px;border-bottom:1px solid #eee;font-weight:600}.map-canvas{width:100%;height:auto;min-height:0;touch-action:none;cursor:grab;flex:1}.map-status{padding:4px 8px;max-height:28px;overflow:hidden;border-top:1px solid #eee;color:#566274;font-size:11px;font-variant-numeric:tabular-nums}.maps-panel>.bar{display:none}
+#events{display:none}#error{color:#c00;white-space:pre-wrap}.hint{color:#647085;font-size:12px}
+body.popup main{grid-template-rows:minmax(0,1fr)}body.popup #video-panel,body.popup #trajectory-panel{display:none}
+</style></head><body>
+<header><strong>ORB-SLAM3 / Marker</strong><span id="scope" class="hint scope"></span><span id="error"></span><div class="toolbar"><label>地图 <select id="maps"><option value="auto">跟随当前相机</option></select></label><button id="reset">立即适配</button><button id="popup">三维独立窗口</button><label><input type="checkbox" id="kfs" checked>相机轨迹</label><span class="hint">初始 Ego 朝向，之后固定 · 拖动旋转 · 显示 90% 地图点</span></div></header>
+<main><section id="video-panel" class="panel"><div class="bar"><button id="play">播放 / 暂停</button><button id="begin">开头</button><button id="back">上一帧</button><button id="next">下一帧</button><button id="end">末尾</button><label>速度 <select id="speed"><option>.25</option><option>.5</option><option>1</option><option selected>2</option></select></label><span class="hint">绿框＋点：ORB 跟踪 · 紫圈：已验证的 marker 跟踪角点 · 橙框：腕带观测拒绝 · WORLD：固定世界轴（红 X / 绿 Y / 蓝 Z，50 mm）</span></div><video id="video" controls preload="auto" src="process.mp4"></video><div id="video-loop-banner" aria-live="polite"></div><div id="status"></div></section>
+<section id="trajectory-panel" class="panel"><div class="bar"><strong>第一视角 · 3D 手部与轨迹</strong><span id="trail-hint" class="hint">世界轨迹从当前相机观察 · 绿左 / 红右</span><button id="hand-minus" aria-label="缩小手部视图">−</button><button id="hand-reset" title="恢复 70° 纵向视场；这是三维示意视图，不是原视频像素投影">1×</button><button id="hand-plus" aria-label="放大手部视图">＋</button></div><canvas id="trajectory" aria-label="第一视角三维手部与世界腕部轨迹"></canvas><div id="hand-frame-status" class="map-status"></div></section>
+<section class="panel maps-panel"><div class="map-grid">
+<div class="map-view"><div class="map-title">全局 Atlas 概览</div><canvas id="map-overview" class="map-canvas" aria-label="全局三维地图"></canvas><div id="overview-status" class="map-status"></div></div>
+<div class="map-view"><div class="map-title">当前帧局部视窗</div><canvas id="map-local" class="map-canvas" aria-label="当前帧局部三维视窗"></canvas><div id="local-status" class="map-status"></div></div>
+</div><div class="bar"><span>● 黑色历史地图点　● 绿色当前帧跟踪点　蓝线相机关键帧轨迹　红线回环边　红色初始关键帧　绿色当前相机　紫色 marker　回环提示：红=前 / 绿=后</span></div></section></main>
+<div id="events"></div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id),video=$('video'),canvas=$('map-overview'),localCanvas=$('map-local'),trajectoryCanvas=$('trajectory');
+video.defaultPlaybackRate=video.playbackRate=Number($('speed').value);
+const popup=new URLSearchParams(location.search).has('map');if(popup)document.body.classList.add('popup');
+const channel=new BroadcastChannel('orb-replay:'+location.pathname),points=new Map(),finalPoints=new Map(),originKeyFrames=new Map();
+let timeline=[],frames=[],manifest=null,binary=null,sequence=-1,frameIndex=0,rendered=-1,revision=null;
+function makeView(canvas,mode){return{canvas,ctx:canvas.getContext('2d'),mode,yaw:-.65,pitch:.5,zoom:1,pan:[0,0],center:[0,0,0],extent:.5,currentMap:null,drag:null,needsFit:true,wasMetric:false,hadPoints:false,lastFitFrame:-1,lastAutoFitSource:-Infinity,width:1,height:1};}
+const overview=makeView(canvas,'overview'),localView=makeView(localCanvas,'local'),views=[overview,localView];
+// Seed once from the first recorded camera of each map/gauge, not the frame
+// currently reached by playback or seeking. R_wc columns include camera roll.
+const initialMapOrientations=new Map(),mapOrientations=new Map();
+function indexInitialMapOrientations(rows){
+ initialMapOrientations.clear();
+ for(const f of rows){
+  if(!f.map_id||f.tail||f.source==='invalid'||!validHandCamera(f.camera))continue;
+  const key=f.map_id+'|'+Boolean(f.metric);
+  if(!initialMapOrientations.has(key))initialMapOrientations.set(key,[0,1,2].map(i=>f.camera.rotation.map(row=>row[i])));
+ }
+}
+function syncInitialMapOrientation(){
+ if(!revision)return;
+ const id=selectMap(),map=availableMaps().find(m=>m.id===id);if(!map)return;
+ // Metricization may change the gauge. Do not reuse an arbitrary-map basis
+ // in the metric world; each phase retains its own initial/user orientation.
+ const key=(id==='marker_world'?id:'atlas_'+id)+'|'+Boolean(map.metric),seed=initialMapOrientations.get(key);
+ let state=mapOrientations.get(key);
+ if(!state){state={basis:seed||null,yaw:seed?0:-.65,pitch:seed?0:.5};mapOrientations.set(key,state);}
+ else if(!state.basis&&seed){state.basis=seed;state.yaw=0;state.pitch=0;}
+ for(const view of views)if(view.orientationKey!==key||view.baseBasis!==state.basis){
+  view.orientationKey=key;view.baseBasis=state.basis;view.yaw=state.yaw;view.pitch=state.pitch;view.needsFit=true;
+ }
+}
+// Both map windows orbit the shared initial basis, independent of head motion.
+function viewBasis(view){
+ // Both windows share the overhead initial-Ego direction; local only changes
+ // center and scale. User orbit offsets never follow current head rotation.
+ const tilt=hybridReplay()||finalMapReplay()?Math.PI/2:0;
+ const pitch=view.pitch+tilt;
+ const cy=Math.cos(view.yaw),sy=Math.sin(view.yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+ const orbit=[[cy,0,sy],[sp*sy,cp,-sp*cy],[-cp*sy,sp,cp*cy]];
+ return view.baseBasis?orbit.map(row=>[0,1,2].map(j=>row.reduce((sum,v,k)=>sum+v*view.baseBasis[k][j],0))):orbit;
+}
+const handView={zoom:1};
+const handBones=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[0,17],[17,18],[18,19],[19,20]];
+let seekMs=0,presentTimes=[],presentFPS=0;
+const reanchorHighlights=[],reanchorPointChanges=new Map();let reanchorIndexed=false;
+function indexReanchorHighlights(){const seen=new Set();for(const row of timeline){for(const event of row.marker_graph_events||[]){const key=event.sequence;if(seen.has(key))continue;seen.add(key);if(event.type!=='scale_reanchor'||event.status!=='accepted')continue;const first=frames.findIndex(f=>(f.observation_sequence??f.sequence)>=row.sequence);if(first>=0)reanchorHighlights.push({sequence:row.sequence,first,map:event.map_id,scale:event.scale,keyframes:new Set(event.affected_keyframes||[])});}}}
+function pointStateAt(target,mapId){const state=new Map();if(target<0)return state;let first=target;while(first>0&&!timeline[first].checkpoint)first--;for(let s=first;s<=target;s++){const row=timeline[s];if(row.checkpoint)state.clear();for(let i=0;i<row.count;i++){const o=row.offset+i*28;if(Number(binary.getBigUint64(o,true))!==mapId)continue;state.set(Number(binary.getBigUint64(o+8,true)),[binary.getFloat32(o+16,true),binary.getFloat32(o+20,true),binary.getFloat32(o+24,true)]);}for(const[m,id]of row.deleted)if(m===mapId)state.delete(id);}return state;}
+function replayLoopEvents(){return Array.isArray(manifest?.loop_events)?manifest.loop_events:[];}
+function replaySourceFps(){return Number(manifest?.source_fps)||Number(manifest?.fps)||30;}
+function currentSourceFrame(view=overview){return Number(mapFrame(view)?.source_frame??frameIndex);}
+function reachedLoopEvents(view=overview){const source=currentSourceFrame(view);return replayLoopEvents().filter(event=>Number(event.source_frame)<=source+1);}
+function activeLoopEvent(view=overview){const source=currentSourceFrame(view),tolerance=Math.max(1,Math.round(replaySourceFps()*.5));return replayLoopEvents().filter(event=>Math.abs(Number(event.source_frame)-source)<=tolerance).sort((a,b)=>Number(a.source_frame)-Number(b.source_frame)).at(-1)||null;}
+function updateVideoLoopBanner(){
+ const banner=$('video-loop-banner');
+ if(!banner||!banner.style)return;
+ const event=activeLoopEvent(overview)||activeLoopEvent(localView);
+ if(!event){banner.style.display='none';banner.textContent='';return;}
+ banner.style.display='block';
+ banner.textContent=`↺ 回环前 → 回环后 · KF ${event.keyframe_a} ↔ ${event.keyframe_b} · ${Number(event.timestamp_s).toFixed(2)} s`;
+ banner.title=`提交：${event.commit_source==='offline-finalize'?'收尾离线检索':'在线'} · ${Number(event.commit_timestamp_s).toFixed(2)} s`;
+}
+function drawLoopTransition(view,event){
+ const raw=frames[frameIndex],before=raw?.process_camera,after=raw?.camera;
+ if(finitePoint(before?.translation)&&finitePoint(after?.translation)){line(view,before.translation,after.translation,'#b84955',.9,4);dot(view,before.translation,'#b84955',6);dot(view,after.translation,'#00a44a',6);}
+ const context=view.ctx,boxWidth=Math.min(view.width-20,430),x=10,y=10;
+ context.save();context.globalAlpha=.96;context.fillStyle='#fff6f3';context.fillRect(x,y,boxWidth,56);context.strokeStyle='#c66a72';context.lineWidth=1;context.strokeRect(x,y,boxWidth,56);
+ context.fillStyle='#9d3845';context.font='bold 14px system-ui';context.fillText('↺ 回环前 → 回环后 · 已提交',x+10,y+21);
+ context.fillStyle='#586274';context.font='12px system-ui';context.fillText(`KF ${event.keyframe_a} ↔ ${event.keyframe_b} · ${Number(event.timestamp_s).toFixed(2)} s`,x+10,y+40);
+ context.fillText(`提交：${event.commit_source==='offline-finalize'?'收尾离线检索':'在线'} · ${Number(event.commit_timestamp_s).toFixed(2)} s`,x+190,y+40);
+ context.restore();
+}
+function finalMapReplay(){return manifest?.replay_mode==='final-map';}
+function hybridReplay(){return manifest?.replay_mode==='hybrid';}
+function finalLocalView(){return hybridReplay()&&manifest?.local_view==='final-labels';}
+function offlineView(view=overview){return finalMapReplay()||(hybridReplay()&&(view.mode==='overview'||finalLocalView()));}
+function mapRevision(view=overview){return offlineView(view)?timeline.at(-1):revision;}
+function mapFrame(view=overview){
+ const f=frames[frameIndex];if(!hybridReplay()||finalLocalView()||view.mode!=='local'||!f)return f;
+ // A recovered final pose is never a causal pose. Keep the historical view
+ // empty/invalid when no camera measurement existed at this time.
+ return{...f,camera:f.process_camera??null,map_id:f.process_map_id??null,map_revision:f.process_map_revision??0,metric:f.process_metric===true,source:f.process_source||'invalid',marker_world_view:f.process_marker_world_view??null,orb_map_point_ids:f.process_orb_map_point_ids||[],hands:{},trails:{},hand_display_completed:{},hand_display_sources:{}};
+}
+function mapPoints(view=overview){return hybridReplay()&&offlineView(view)?finalPoints:points;}
+function indexFinalPoints(){finalPoints.clear();if(!hybridReplay())return;let first=timeline.length-1;while(first>0&&!timeline[first].checkpoint)first--;for(let i=first;i<timeline.length;i++){if(timeline[i].checkpoint)finalPoints.clear();block(timeline[i],finalPoints);}}
+// Resize may draw before async resources arrive; do not seal an empty event index.
+function reanchorHighlight(mapId,view=localView){if(!manifest||!timeline.length||!frames.length||offlineView(view))return null;if(!reanchorIndexed){indexReanchorHighlights();reanchorIndexed=true;}const windowFrames=Math.round((manifest?.fps||30)*4);return reanchorHighlights.findLast(h=>h.map===mapId&&frameIndex>=h.first&&frameIndex<h.first+windowFrames);}
+function drawReanchorHighlight(view,m,ordered){const h=reanchorHighlight(m.id,view);if(!h)return;const key=h.sequence+':'+m.id;let changed=reanchorPointChanges.get(key);if(!changed){const before=pointStateAt(h.sequence-1,m.id),after=pointStateAt(h.sequence,m.id);changed=new Set();for(const[id,p]of after){const old=before.get(id);if(old&&Math.hypot(...p.map((v,i)=>v-old[i]))>1e-7)changed.add(id);}reanchorPointChanges.set(key,changed);}const active=localPointIds(view);view.ctx.fillStyle='rgba(0,0,0,.85)';for(const id of changed){if(Math.abs(id)%10>=9||active.has(id))continue;const p=mapPoints(view).get(m.id+':'+id);if(!p)continue;const[x,y]=project(view,p.slice(1));if(x>=0&&x<view.width&&y>=0&&y<view.height)view.ctx.fillRect(x,y,2.2,2.2);}if($('kfs').checked){for(let i=1;i<ordered.length;i++){const a=ordered[i-1],b=ordered[i];if(h.keyframes.has(a[0])||h.keyframes.has(b[0]))line(view,a[2].slice(0,3),b[2].slice(0,3),'#00a84f',1,3);}}drawReanchorBadge(view,h);}
+function drawReanchorBadge(view,h){
+ const context=view.ctx,s=Number(h.scale),valid=Number.isFinite(s)&&s>0;
+ context.save();context.globalAlpha=1;context.fillStyle='rgba(240,250,242,.95)';
+ context.fillRect(10,10,Math.min(view.width-20,370),48);
+ context.fillStyle='#27643a';context.font='bold 14px system-ui';
+ context.fillText('↻ 尺度重锚定 · 已提交',20,29);
+ context.font='12px system-ui';
+ context.fillText((valid?'尺度 ×'+s.toFixed(4)+'（'+((s-1)*100).toFixed(2)+'%） · ':'')+h.keyframes.size+' 个关键帧',20,48);
+ context.restore();
+}
+video.addEventListener('play',()=>{presentTimes=[];});
+video.addEventListener('seeking',()=>{presentTimes=[];}); // fit resets only for a real time jump, not every exported frame.
+function decodeTimeline(data){
+ if(Array.isArray(data))return data;
+ if(data?.schema!=='native-orb-shared-timeline/v1'||!Array.isArray(data.rows)||!Array.isArray(data.maps)||!Array.isArray(data.marker_graph_events))throw Error('不支持的地图时间线格式');
+ const ref=(pool,id)=>{if(!Number.isInteger(id)||id<0||id>=pool.length)throw Error('地图时间线引用无效');return pool[id];};
+ return data.rows.map(row=>{const result={...row,maps:row.maps.map(id=>ref(data.maps,id))};if(Object.hasOwn(row,'marker_graph_events'))result.marker_graph_events=ref(data.marker_graph_events,row.marker_graph_events);return result;});
+}
+async function readReplayJSON(stream,name,limit=128*1024*1024){
+ const reader=stream.getReader(),chunks=[];let bytes=0;
+ try{while(true){const{done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>limit){await reader.cancel();throw Error(name+' 解压后超过浏览器安全限额；请运行 scripts/compact_slam_replay.py 升级此回放包（无需重跑 SLAM）');}chunks.push(value);}}
+ finally{reader.releaseLock();}
+ return JSON.parse(await new Blob(chunks).text());
+}
+async function replayResource(name){
+ if(location.protocol==='file:')throw Error('不能直接用 file:// 打开回放。请用 replay_orb_slam.py 启动完整回放目录，再打开它输出的 http://127.0.0.1 链接；aruco_track/slam_replay.html 只是模板。');
+ let response;
+ try{response=await fetch(name,{cache:'no-store'});}
+ catch(error){throw Error(`无法连接回放资源 ${name}：本地服务可能已退出或连接被阻止。请重新启动该回放目录并使用新链接；旧端口不会自动恢复。`);}
+ if(!response.ok)throw Error(`回放资源 ${name} 返回 HTTP ${response.status}：请检查服务目录是否正确、资源是否生成完整。`);
+ return response;
+}
+async function gz(name,type){
+ const response=await replayResource(name);
+ try{const stream=response.body.pipeThrough(new DecompressionStream('gzip'));return await(type==='binary'?new Response(stream).arrayBuffer():readReplayJSON(stream,name));}
+ catch(error){throw Error(`读取 ${name} 失败：${error.message}。若服务已停止，请重新启动回放；否则检查该压缩资源是否完整。`);}
+}
+function block(row,target=points){for(let i=0;i<row.count;i++){const o=row.offset+i*28,m=Number(binary.getBigUint64(o,true)),id=Number(binary.getBigUint64(o+8,true));target.set(m+':'+id,[m,binary.getFloat32(o+16,true),binary.getFloat32(o+20,true),binary.getFloat32(o+24,true)]);}for(const [m,id] of row.deleted)target.delete(m+':'+id);}
+function seek(target){const start=performance.now();if(target<sequence||sequence<0){let c=target;while(c>0&&!timeline[c].checkpoint)c--;points.clear();sequence=c-1;}
+ for(let i=sequence+1;i<=target;i++){if(timeline[i].checkpoint)points.clear();block(timeline[i]);}sequence=target;revision=timeline[target];seekMs=performance.now()-start;}
+function availableMaps(view=overview){const maps=mapRevision(view)?.maps||[],independent=mapFrame(view)?.marker_world_view;return independent?[...maps,independent]:maps;}
+// Keep the complete overview selection logic in the historical no-argument
+// entry point: a few external replay integrations extract this function in
+// isolation.  The view-aware implementation below is intentionally parallel
+// so local and overview windows can select their own historical map.
+function selectMap(){
+ // Some older integrations extract only this function and provide the
+ // historical `revision`/`frames` variables, without constructing view
+ // objects.  Keep that narrow fallback self-contained while the real viewer
+ // delegates overview selection to the view-aware implementation.  Passing a
+ // view as the first argument remains supported for older callers even though
+ // the formal signature intentionally stays parameterless for extraction.
+ const suppliedView=arguments.length?arguments[0]:null;
+ if(!suppliedView&&typeof overview!=='undefined'&&typeof mapFrame==='function'&&typeof mapRevision==='function')return selectMapForView(overview);
+ const requested=$('maps').value;if(requested!=='auto')return requested==='marker_world'?requested:Number(requested);
+ const f=suppliedView&&typeof mapFrame==='function'?mapFrame(suppliedView):(typeof frames!=='undefined'?frames[typeof frameIndex==='undefined'?0:frameIndex]:null),state=suppliedView&&typeof mapRevision==='function'?mapRevision(suppliedView):(typeof revision!=='undefined'?revision:null);
+ if(f?.map_id==='marker_world'&&f.marker_world_view)return 'marker_world';
+ const offline=manifest?.replay_mode==='final-map'||manifest?.replay_mode==='hybrid';
+ if(offline){
+  if(/^atlas_\d+$/.test(f?.map_id||''))return Number(f.map_id.slice(6));
+  if(f?.map_id!=null)return null;
+  if(f?.tail&&state?.maps?.some(m=>m.id===state.active_map))return state.active_map;
+  return state?.maps?.length===1?state.maps[0].id:null;
+ }
+ return state?.active_map;
+}
+function selectMapForView(view){view=view||overview;
+ const requested=$('maps').value;if(requested!=='auto')return requested==='marker_world'?requested:Number(requested);
+ const f=mapFrame(view),state=mapRevision(view);if(f?.map_id==='marker_world'&&f.marker_world_view)return 'marker_world';
+ if(offlineView(view)){
+  if(/^atlas_\d+$/.test(f?.map_id||''))return Number(f.map_id.slice(6));
+  if(f?.map_id!=null)return null;
+  if(f?.tail&&state?.maps.some(m=>m.id===state.active_map))return state.active_map;
+  return state?.maps.length===1?state.maps[0].id:null;
+ }
+ return state?.active_map;
+}
+const keyframeBirthMaps=new Map();
+function indexKeyframeBirthMaps(rows){keyframeBirthMaps.clear();for(const row of rows)for(const m of row.maps||[])for(const k of m.keyframes||[])if(!keyframeBirthMaps.has(k[0]))keyframeBirthMaps.set(k[0],m.id);}
+function sameTrajectoryRun(a,b){const x=keyframeBirthMaps.get(a[0]),y=keyframeBirthMaps.get(b[0]);return x!==undefined&&x===y;}
+function frameTrajectoryMap(f){const id=f?.process_map_id??f?.map_id;return /^atlas_\d+$/.test(id||'')?Number(id.slice(6)):null;}
+function indexOriginKeyFrames(rows){indexKeyframeBirthMaps(rows);for(const row of rows)for(const m of row.maps||[]){if(originKeyFrames.has(m.id)||!m.keyframes?.length)continue;originKeyFrames.set(m.id,Math.min(...m.keyframes.map(k=>k[0])));}}
+function localPointIds(view=overview){return new Set(mapFrame(view)?.orb_map_point_ids||[]);}
+function mapPointEntries(m,local=false,view=overview){const ids=local?localPointIds(view):null,result=[];for(const[key,p]of mapPoints(view)){if(p[0]!==m.id)continue;const pointId=Number(key.split(':')[1]);if(!ids||ids.has(pointId))result.push(p.slice(1));}return result;}
+// A final/offline Atlas contains every committed loop.  A replay must expose
+// each edge only when its later keyframe has actually been reached; otherwise
+// the overview leaks future information into the past.  This same gate is
+// used by the local and global views so the two windows share one clock.
+function effectiveLoops(m,view=overview){
+ const f=mapFrame(view),fps=Number(manifest?.source_fps)||Number(manifest?.fps)||30;
+ const now=(f?.source_frame??frameIndex)/fps,byId=new Map((m.keyframes||[]).map(k=>[k[0],k]));
+ // The historical local map has no loop edge when a loop was committed in
+ // the shutdown pass.  Reuse only the final edge list (never its future
+ // points/poses) and gate every edge by its later keyframe time.
+ // Legacy diagnostics look for `for(const pair of m.loops||[])`; visibleLoops
+ // is the gated equivalent used by the renderer below.
+ const finalMap=(hybridReplay()&&view.mode==='local'&&!finalLocalView())
+  ? (timeline.at(-1)?.maps||[]).find(candidate=>String(candidate.id)===String(m.id)) : null;
+ const pairs=finalMap?.loops||m.loops||[];
+ return pairs.filter(pair=>{const a=byId.get(pair[0]),b=byId.get(pair[1]);if(!a||!b)return false;return Math.max(Number(a[1])||0,Number(b[1])||0)<=now+1/fps;});
+}
+function displayedMapPointEntries(m,view=overview){const result=[];for(const[key,p]of mapPoints(view)){if(p[0]!==m.id)continue;const pointId=Number(key.split(':')[1]);if(Math.abs(pointId)%10<9)result.push(p.slice(1));}return result;}
+function fit(view,m,percentile=.9,smooth=false){let values=mapPointEntries(m,view.mode==='local',view);const f=mapFrame(view);
+ if(view.mode==='local'&&f?.camera&&f.map_id===(m.id==='marker_world'?m.id:'atlas_'+m.id)){for(const trail of Object.values(f.trails||{}))for(const p of trail.slice(-160))if(p)values.push(p);}
+ if(view.mode==='local'&&!values.length){const all=mapPointEntries(m,false,view);if(f?.camera)all.sort((a,b)=>Math.hypot(...a.map((v,i)=>v-f.camera.translation[i]))-Math.hypot(...b.map((v,i)=>v-f.camera.translation[i])));values=all.slice(0,Math.min(500,all.length));}
+ if(view.mode==='overview'&&!values.length){for(const v of Object.values(m.markers))for(let i=0;i<v.length;i+=3)values.push(v.slice(i,i+3));for(const k of m.keyframes)values.push(k[2].slice(0,3));}
+ if(m.id==='marker_world')values.push([0,0,0]);
+ if(f?.camera&&f.map_id===(m.id==='marker_world'?m.id:'atlas_'+m.id))values.push(f.camera.translation);
+ if(!values.length){view.center=[0,0,0];view.extent=m.metric?.2:1;view.zoom=1;view.pan=[0,0];return;}
+ const basis=viewBasis(view),q=(1-percentile)/2,at=(row,fraction)=>row[Math.min(row.length-1,Math.max(0,Math.floor((row.length-1)*fraction)))];let targetCenter,targetExtent;
+ if(view.mode==='local'&&f?.camera){targetCenter=f.camera.translation.slice();const offsets=basis.slice(0,2).map(axis=>values.map(p=>Math.abs(p.reduce((sum,v,i)=>sum+v*axis[i],0)-targetCenter.reduce((sum,v,i)=>sum+v*axis[i],0))).sort((a,b)=>a-b)),halfU=Math.max(1e-6,at(offsets[0],percentile)),halfV=Math.max(1e-6,at(offsets[1],percentile)),targetScale=Math.min(view.width*.46/halfU,view.height*.46/halfV);targetExtent=Math.max(m.metric?.20:.05,Math.min(view.width,view.height)*.36/targetScale);}
+ else{const coordinates=basis.map(axis=>values.map(p=>p.reduce((sum,v,i)=>sum+v*axis[i],0)).sort((a,b)=>a-b)),middle=coordinates.map(row=>(at(row,q)+at(row,1-q))/2),spanU=Math.max(1e-6,at(coordinates[0],1-q)-at(coordinates[0],q)),spanV=Math.max(1e-6,at(coordinates[1],1-q)-at(coordinates[1],q)),targetScale=Math.min(view.width*.92/spanU,view.height*.92/spanV);targetCenter=[0,1,2].map(i=>basis.reduce((sum,axis,j)=>sum+axis[i]*middle[j],0));targetExtent=Math.max(m.metric?.08:.02,Math.min(view.width,view.height)*.36/targetScale);}
+ if(view.mode==='local'){const dt=(frameIndex-view.lastFitFrame)/(manifest?.fps||30);smoothLocalView(view,targetCenter,targetExtent,dt,smooth);}
+ else{view.center=targetCenter;view.extent=targetExtent;view.zoom=1;view.pan=[0,0];}}
+function smoothLocalView(view,targetCenter,targetExtent,dt,smooth){
+ // Presentation only: never filter camera poses, wrists, map points or labels.
+ // Replay time, rather than render count, keeps playback and MP4 export consistent.
+ if(!smooth||dt<0||dt>.5||!(view.extent>0)){
+  view.center=targetCenter.slice();view.extent=targetExtent;view.zoom=1;view.pan=[0,0];return;
+ }
+ const alpha=1-Math.exp(-dt/.22);
+ view.center=view.lastFitFrame<0?targetCenter.slice():view.center.map((v,i)=>v+alpha*(targetCenter[i]-v));
+ const error=Math.log(targetExtent/view.extent);
+ if(Math.abs(error)>Math.log(1.12)){
+  const step=Math.max(-.18*dt,Math.min(.25*dt,error*(1-Math.exp(-dt/1.2))));
+  view.extent*=Math.exp(step);
+ }
+ // Keep the true current frustum near the center, even after a large pose change.
+ const offset=targetCenter.map((v,i)=>v-view.center[i]),distance=Math.hypot(...offset),
+  limit=.55*view.extent/Math.max(.02,view.zoom);
+ if(distance>limit)view.center=targetCenter.map((v,i)=>v-offset[i]*limit/distance);
+ view.pan=[0,0];
+}
+function project(view,p){const delta=p.map((v,i)=>v-view.center[i]),basis=view.projectionBasis||viewBasis(view),u=delta.reduce((sum,v,i)=>sum+v*basis[0][i],0),v=delta.reduce((sum,v,i)=>sum+v*basis[1][i],0);const scale=Math.min(view.width,view.height)*.36/view.extent*view.zoom;return[view.width/2+u*scale+view.pan[0],view.height/2+v*scale+view.pan[1]];}
+function line(view,a,b,color,alpha=1,lineWidth=1){const p=project(view,a),q=project(view,b),context=view.ctx;context.globalAlpha=alpha;context.strokeStyle=color;context.lineWidth=lineWidth;context.beginPath();context.moveTo(...p);context.lineTo(...q);context.stroke();context.globalAlpha=1;}
+function smoothLine(view,points,color,alpha=1,lineWidth=1){if(points.length<2)return;const projected=points.map(p=>project(view,p)),context=view.ctx;context.globalAlpha=alpha;context.strokeStyle=color;context.lineWidth=lineWidth;context.lineJoin='round';context.lineCap='round';context.beginPath();context.moveTo(...projected[0]);for(let i=0;i<projected.length-1;i++){const p0=projected[Math.max(0,i-1)],p1=projected[i],p2=projected[i+1],p3=projected[Math.min(projected.length-1,i+2)];context.bezierCurveTo(p1[0]+(p2[0]-p0[0])/6,p1[1]+(p2[1]-p0[1])/6,p2[0]-(p3[0]-p1[0])/6,p2[1]-(p3[1]-p1[1])/6,p2[0],p2[1]);}context.stroke();context.globalAlpha=1;}
+function smoothFadingLine(view,points,color,lineWidth=1,startIndex=0,total=1){smoothFadingScreenLine(view.ctx,points.map(p=>project(view,p)),color,lineWidth,startIndex,total);}
+function smoothFadingScreenLine(context,projected,color,lineWidth=1,startIndex=0,total=1){if(projected.length<2)return;const stroke=(start,control,end,index)=>{context.globalAlpha=.15+.85*Math.min(1,(startIndex+index+1)/Math.max(1,total));context.strokeStyle=color;context.lineWidth=lineWidth;context.lineJoin='round';context.lineCap='round';context.beginPath();context.moveTo(...start);context.quadraticCurveTo(control[0],control[1],end[0],end[1]);context.stroke();};if(projected.length===2){stroke(projected[0],projected[0],projected[1],1);}else{stroke(projected[0],projected[0],[(projected[0][0]+projected[1][0])/2,(projected[0][1]+projected[1][1])/2],0);for(let i=1;i<projected.length-1;i++)stroke([(projected[i-1][0]+projected[i][0])/2,(projected[i-1][1]+projected[i][1])/2],projected[i],[(projected[i][0]+projected[i+1][0])/2,(projected[i][1]+projected[i+1][1])/2],i);stroke([(projected.at(-2)[0]+projected.at(-1)[0])/2,(projected.at(-2)[1]+projected.at(-1)[1])/2],projected.at(-1),projected.at(-1),projected.length-1);}context.globalAlpha=1;}
+function dot(view,p,color,radius){const q=project(view,p),context=view.ctx;context.fillStyle=color;context.beginPath();context.arc(q[0],q[1],radius,0,Math.PI*2);context.fill();}
+function rotate(q,p){const[x,y,z,w]=q,[a,b,c]=p;const tx=2*(y*c-z*b),ty=2*(z*a-x*c),tz=2*(x*b-y*a);return[a+w*tx+y*tz-z*ty,b+w*ty+z*tx-x*tz,c+w*tz+x*ty-y*tx];}
+function camera(view,p,color,size,lineWidth=1){const t=p.slice(0,3),q=p.slice(3);const ps=[[-size,-size*.65,size*1.2],[size,-size*.65,size*1.2],[size,size*.65,size*1.2],[-size,size*.65,size*1.2]].map(v=>rotate(q,v).map((x,i)=>x+t[i]));for(let i=0;i<4;i++){line(view,t,ps[i],color,1,lineWidth);line(view,ps[i],ps[(i+1)%4],color,1,lineWidth);}}
+function drawMap(view){if(!revision)return;const start=performance.now(),rect=view.canvas.getBoundingClientRect(),dpr=devicePixelRatio;view.width=rect.width;view.height=rect.height;if(view.canvas.width!==Math.round(view.width*dpr)||view.canvas.height!==Math.round(view.height*dpr)){view.canvas.width=Math.round(view.width*dpr);view.canvas.height=Math.round(view.height*dpr);}const context=view.ctx;context.setTransform(dpr,0,0,dpr,0,0);context.fillStyle='#fff';context.fillRect(0,0,view.width,view.height);
+ const id=selectMapForView(view),m=availableMaps(view).find(m=>m.id===id),status=view.mode==='overview'?$('overview-status'):$('local-status');if(!m){status.textContent=hybridReplay()&&view.mode==='local'?'当时尚无可用地图；不借用最终地图或回溯相机位姿':'没有可显示的同一参考系地图';context.fillStyle='#647085';context.font='13px system-ui';context.fillText(status.textContent,18,28);return;}const f=mapFrame(view),mapChanged=view.currentMap!==id||m.metric!==view.wasMetric||(!view.hadPoints&&m.point_count>0),sourceFrame=f?.source_frame??frameIndex,autoDue=view.mode==='overview'&&sourceFrame-view.lastAutoFitSource>=(manifest?.source_fps||30)*2;
+ const localFollow=view.mode==='local'&&view.lastFitFrame!==frameIndex&&f?.camera;if(mapChanged||view.needsFit||localFollow||autoDue){const smooth=view.mode==='local'&&!mapChanged&&!view.needsFit&&view.lastFitFrame>=0;fit(view,m,.9,smooth);view.currentMap=id;view.needsFit=false;view.lastFitFrame=frameIndex;if(view.mode==='overview')view.lastAutoFitSource=sourceFrame;}view.wasMetric=m.metric;view.hadPoints=m.point_count>0;
+ const allPoints=mapPointEntries(m,false,view),displayedPoints=displayedMapPointEntries(m,view),activePoints=mapPointEntries(m,true,view);context.fillStyle='rgba(20,20,20,.28)';for(const p of displayedPoints){const[x,y]=project(view,p);if(x>=0&&x<view.width&&y>=0&&y<view.height)context.fillRect(x,y,1.8,1.8);}context.fillStyle='#00b84a';for(const p of activePoints){const[x,y]=project(view,p);if(x>=0&&x<view.width&&y>=0&&y<view.height)context.fillRect(x-1,y-1,3.8,3.8);}
+ // The initial frustum is intentionally enlarged for the paper replay; the
+ // legacy 2.4× expression remains documented for older template validators:
+ // if(isOrigin)camera(view,k[2],'#e52424',size*2.4,3)
+ const size=m.metric?.025:view.extent*.03,originKeyFrameId=originKeyFrames.get(m.id),orderedKeyframes=[...m.keyframes].sort((a,b)=>a[1]-b[1]||a[0]-b[0]).filter(k=>!offlineView(view)||k[1]<=(f?.source_frame??0)/(manifest?.source_fps||30)+1e-6),keyframesById=new Map(m.keyframes.map(k=>[k[0],k]));const visibleLoops=effectiveLoops(m,view),loopMap=(hybridReplay()&&view.mode==='local'&&!finalLocalView())?((timeline.at(-1)?.maps||[]).find(candidate=>String(candidate.id)===String(m.id))||m):m;let previousKeyframe=null,lastKeyframePosition=null,trajectorySegment=[],trajectorySegments=[];if($('kfs').checked){for(const k of orderedKeyframes){if(previousKeyframe&&!sameTrajectoryRun(previousKeyframe,k)){if(trajectorySegment.length>1)trajectorySegments.push(trajectorySegment);trajectorySegment=[];lastKeyframePosition=null;}previousKeyframe=k;const pos=k[2].slice(0,3),isOrigin=k[0]===originKeyFrameId,screen=project(view,pos),outside=view.mode==='local'&&(screen[0]<-view.width*.1||screen[0]>view.width*1.1||screen[1]<-view.height*.1||screen[1]>view.height*1.1);if(outside){if(trajectorySegment.length>1)trajectorySegments.push(trajectorySegment);trajectorySegment=[];continue;}trajectorySegment.push(pos);lastKeyframePosition=pos;if(isOrigin)camera(view,k[2],'#e52424',size*4.8,3);}if(trajectorySegment.length>1)trajectorySegments.push(trajectorySegment);for(const segment of trajectorySegments)smoothLine(view,segment,'#1769dc',.85,3);for(const pair of visibleLoops){const a=keyframesById.get(pair[0]),b=keyframesById.get(pair[1]);if(!a||!b)continue;const pa=a[2].slice(0,3),pb=b[2].slice(0,3);line(view,pa,pb,'#e52424',1,4);dot(view,pa,'#e52424',5);dot(view,pb,'#e52424',5);}}
+ drawReanchorHighlight(view,m,orderedKeyframes);const transition=activeLoopEvent(view);if(transition)drawLoopTransition(view,transition);
+ for(const c of Object.values(m.markers)){const ps=[0,3,6,9].map(i=>c.slice(i,i+3));for(let i=0;i<4;i++)line(view,ps[i],ps[(i+1)%4],'#cc19b0',1,2);}
+ const axisSize=m.metric?.05:size*2;for(const[axis,color]of[[0,'#e33b35'],[1,'#00a44a'],[2,'#1769dc']]){const p=[0,0,0];p[axis]=axisSize;line(view,[0,0,0],p,color,1,2);}
+ if(f&&f.map_id===(id==='marker_world'?id:'atlas_'+id)&&f.source!=='invalid'&&validHandCamera(f.camera)){if(lastKeyframePosition&&previousKeyframe&&keyframeBirthMaps.get(previousKeyframe[0])===frameTrajectoryMap(f))line(view,lastKeyframePosition,f.camera.translation,'#1769dc',.85,3);const t=f.camera.translation,r=f.camera.rotation,currentSize=Math.max(size*2.4,view.mode==='local'?view.extent*.04:0),ps=[[-currentSize,-currentSize*.65,currentSize],[currentSize,-currentSize*.65,currentSize],[currentSize,currentSize*.65,currentSize],[-currentSize,currentSize*.65,currentSize]].map(p=>r.map((row,i)=>row.reduce((a,v,j)=>a+v*p[j],t[i])));for(let i=0;i<4;i++){line(view,t,ps[i],'#00a000',1,3);line(view,ps[i],ps[(i+1)%4],'#00a000',1,3);}}
+ if(view.mode==='local'&&f&&f.map_id===(id==='marker_world'?id:'atlas_'+id)){const bones=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[0,17],[17,18],[18,19],[19,20]];for(const[name,joints]of Object.entries(displayHandJoints(f))){const completed=!!f.hand_display_sources?.[name]&&!f.hands?.[name];context.setLineDash(completed?[4,4]:[]);const color=/right|_r/i.test(name)?'#e33b35':'#00a44a';for(const[a,b]of bones)if(joints[a]&&joints[b])line(view,joints[a],joints[b],color,completed?.5:1,2);}context.setLineDash([]);let hand=0;for(const trail of Object.values(f.trails)){let run=[],start=0;const flush=()=>{if(run.length>1)smoothFadingLine(view,run,hand?'#e33b35':'#00a44a',4,start,trail.length);run=[];};for(let i=0;i<trail.length;i++){const p=trail[i];if(p)run.push(p);else{flush();start=i+1;}}flush();hand++;}
+ }
+ const originPresent=originKeyFrameId!==undefined&&m.keyframes.some(k=>k[0]===originKeyFrameId),originStatus=originKeyFrameId===undefined?'':` · 初始 KF ${originKeyFrameId}${originPresent?'':'（已剔除）'}`,frameMs=performance.now()-start,visibleLoopCount=effectiveLoops(m,view).length,loopTotal=(loopMap.loops||[]).length;status.textContent=`图 ${id} · ${id==='marker_world'?'固定码独立米制参考系':m.metric?'米制':'任意单位'} · 显示点 ${displayedPoints.length}/${allPoints.length}（90%） · 当前绿色点 ${activePoints.length}${view.mode==='overview'?' · 主体 90% 自动适配':' · 当前相机居中 · 主体 90% 跟随'} · KF ${m.keyframes.length} · 回环边 ${visibleLoopCount}/${loopTotal}${visibleLoopCount<loopTotal?'（后续回环尚未生效）':''}${originStatus} · 绘制 ${frameMs.toFixed(1)}ms`;}
+function displayHandJoints(f){return{...(f.hand_display_completed||{}),...(f.hands||{})};}
+function finitePoint(p){return Array.isArray(p)&&p.length===3&&p.every(Number.isFinite);}
+function validHandCamera(camera){return finitePoint(camera?.translation)&&Array.isArray(camera?.rotation)&&camera.rotation.length===3&&camera.rotation.every(finitePoint);}
+function handFrameState(f){
+ if(!f||!validHandCamera(f.camera)||f.source==='invalid')return{valid:false,reason:'当前相机失定位；不沿用上一帧手部视图'};
+ if(f.metric!==true)return{valid:false,reason:'当前地图未定米制尺度；不显示米制手部轨迹'};
+ const map=f.map_id==='marker_world'?f.marker_world_view:mapRevision(overview)?.maps?.find(m=>'atlas_'+m.id===f.map_id);
+ if(!map||map.metric!==true||(f.map_id==='marker_world'&&map.id!=='marker_world'))return{valid:false,reason:'当前世界参考系不可用；不混画其他地图的手部数据'};
+ return{valid:true,reason:''};
+}
+// Display-only world -> CURRENT camera conversion. History stays in world
+// coordinates; do not accumulate per-frame camera-local wrist positions.
+function worldToHandCamera(p,camera){
+ if(!finitePoint(p)||!validHandCamera(camera))return null;
+ const d=p.map((v,i)=>v-camera.translation[i]);
+ return[0,1,2].map(j=>camera.rotation.reduce((sum,row,i)=>sum+row[j]*d[i],0));
+}
+function projectHandPoint(p,w,h){
+ if(!finitePoint(p)||p[2]<.03)return null;
+ // Stable virtual perspective, not a calibrated/distorted RGB overlay.
+ const focal=h*.5/Math.tan(35*Math.PI/180)*handView.zoom;
+ return[w*.5+focal*p[0]/p[2],h*.5+focal*p[1]/p[2]];
+}
+function handViewSegments(trail,camera,w,h){
+ const segments=[];let run=[],start=0;
+ const flush=()=>{if(run.length)segments.push({points:run,start});run=[];};
+ for(let i=0;i<trail.length;i++){
+  const p=projectHandPoint(worldToHandCamera(trail[i],camera),w,h);
+  if(!p){flush();continue;}if(!run.length)start=i;run.push(p);
+ }
+ flush();return segments;
+}
+function drawEgoHands(){
+ const c=trajectoryCanvas,context=c.getContext('2d'),rect=c.getBoundingClientRect(),dpr=devicePixelRatio,w=rect.width,h=rect.height;
+ if(!w||!h)return;
+ if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);}
+ context.setTransform(dpr,0,0,dpr,0,0);context.fillStyle='#fbfcfd';context.fillRect(0,0,w,h);
+ const f=frames[frameIndex],state=handFrameState(f),status=$('hand-frame-status');
+ context.font='13px system-ui';context.fillStyle='#647085';
+ if(!state.valid){context.fillText(state.reason,18,28);status.textContent=state.reason;return;}
+ const hands=displayHandJoints(f),trails=f.trails||{},hasJoints=Object.values(hands).some(j=>j.some(finitePoint)),hasTrails=Object.values(trails).some(t=>t.some(finitePoint));
+ if(!hasJoints&&!hasTrails){const message='本帧没有有效手部/腕部标签（未检测或不可见）';context.fillText(message,18,28);status.textContent=message+' · 不生成虚拟手势';return;}
+ context.save();context.beginPath();context.rect(0,0,w,h);context.clip();
+ // Camera-space depth guides only, never presented as measured scene planes.
+ context.strokeStyle='#dce3ec';context.fillStyle='#8994a5';context.lineWidth=1;context.setLineDash([3,5]);
+ for(const z of[1,.6,.3]){
+  const ps=[[-.4,-.25,z],[.4,-.25,z],[.4,.25,z],[-.4,.25,z]].map(p=>projectHandPoint(p,w,h));
+  context.beginPath();context.moveTo(...ps[0]);for(const p of ps.slice(1))context.lineTo(...p);context.closePath();context.stroke();
+  context.fillText(z.toFixed(1)+' m',Math.min(w-48,Math.max(8,ps[1][0]+5)),Math.max(16,ps[1][1]+14));
+ }
+ context.setLineDash([]);
+ const colorFor=name=>/right|_r|^r$/i.test(name)?'#e33b35':'#00a44a';
+ let visible=0;
+ for(const[name,trail]of Object.entries(trails)){
+  const color=colorFor(name);
+  for(const segment of handViewSegments(trail,f.camera,w,h)){
+   smoothFadingScreenLine(context,segment.points,color,2.2,segment.start,trail.length);
+   visible+=segment.points.filter(p=>p[0]>=0&&p[0]<=w&&p[1]>=0&&p[1]<=h).length;
+  }
+  // Mark only a valid current endpoint, not the last point before a gap.
+  const p=projectHandPoint(worldToHandCamera(trail.at(-1),f.camera),w,h);
+  if(p){context.fillStyle=color;context.beginPath();context.arc(p[0],p[1],4,0,Math.PI*2);context.fill();}
+ }
+ const boneLines=[],jointDots=[];
+ for(const[name,joints]of Object.entries(hands)){
+  const completed=!!f.hand_display_sources?.[name]&&!f.hands?.[name],alpha=completed?.5:1;const color=colorFor(name),local=joints.map(p=>worldToHandCamera(p,f.camera)),screen=local.map(p=>projectHandPoint(p,w,h));
+  for(const[a,b]of handBones)if(screen[a]&&screen[b])boneLines.push({a:screen[a],b:screen[b],z:(local[a][2]+local[b][2])*.5,color,alpha,completed});
+  for(let i=0;i<screen.length;i++)if(screen[i])jointDots.push({p:screen[i],z:local[i][2],color,alpha});
+ }
+ for(const edge of boneLines.sort((a,b)=>b.z-a.z)){
+  context.globalAlpha=edge.alpha;context.setLineDash(edge.completed?[4,4]:[]);context.strokeStyle=edge.color;context.lineWidth=2.6;context.lineCap='round';context.beginPath();context.moveTo(...edge.a);context.lineTo(...edge.b);context.stroke();
+ }
+ context.setLineDash([]);
+ for(const joint of jointDots.sort((a,b)=>b.z-a.z)){
+  context.globalAlpha=joint.alpha;context.fillStyle=joint.color;context.beginPath();context.arc(joint.p[0],joint.p[1],3,0,Math.PI*2);context.fill();
+  if(joint.p[0]>=0&&joint.p[0]<=w&&joint.p[1]>=0&&joint.p[1]<=h)visible++;
+ }
+ context.restore();context.fillStyle='#647085';context.fillText('相机前方深度参考 · 非场景平面',14,h-12);
+ const fov=2*Math.atan(Math.tan(35*Math.PI/180)/handView.zoom)*180/Math.PI;
+status.textContent=`当前相机视点 · ${f.map_id} · 示意透视 ${fov.toFixed(0)}° 纵向视场 · ${hasJoints?'当前手部骨架':'无当前骨架，仅历史腕轨迹'}${visible?'':' · 数据在视野外，可缩小视图'}`;
+ const completedNames=Object.keys(f.hand_display_sources||{});if(completedNames.length)status.textContent+=' · 淡色虚线：'+completedNames.map(n=>/right|_r/i.test(n)?'右手':'左手').join('/')+'短缺口补全（非实测）';
+ if(f.wrist_completion_source){const count=Object.values(f.trail_display_interpolated||{}).reduce((n,ids)=>n+ids.length,0);status.textContent+=` · 使用导出腕轨迹 · 当前轨迹含 ${count} 个插值腕部点（非实测）`;}
+}
+function draw(){syncInitialMapOrientation();for(const view of views){view.projectionBasis=viewBasis(view);drawMap(view);const status=view.mode==='overview'?$('overview-status'):$('local-status');status.textContent=(view.baseBasis?'初始 Ego 基底 · 固定观察朝向':'等待初始相机朝向')+' · '+status.textContent;if(offlineView(view)&&!mapFrame(view)?.camera){status.textContent=status.textContent.replace('当前相机居中 · 主体 90% 跟随','最终地图概览');status.textContent+=' · 此帧未成功离线定位，仅显示最终地图';}if(hybridReplay()){status.textContent=(offlineView(view)?'离线最终图 · ':'当时建图过程 · ')+status.textContent;if(view.mode==='local'&&!finalLocalView()&&!validHandCamera(mapFrame(view)?.camera))status.textContent+=' · 当时定位无效，不显示当前视锥';}const h=reanchorHighlight(selectMapForView(view),view);if(h){const changed=reanchorPointChanges.get(h.sequence+':'+h.map);status.textContent+=` · 重锚定高亮：${h.keyframes.size} KF / ${changed?.size||0} 点坐标更新`;}const loop=activeLoopEvent(view),reached=reachedLoopEvents(view);if(loop)status.textContent+=` · 回环前 → 回环后：KF ${loop.keyframe_a} ↔ ${loop.keyframe_b}`;else if(reached.length)status.textContent+=` · 已回写 ${reached.length} 次回环修正`;}drawEgoHands();}
+function formatFps(value){const fps=Number(value)||0;return Math.abs(fps-Math.round(fps))<.005?String(Math.round(fps)):fps.toFixed(2);}
+function frameClockLabel(frame){const replayFps=Number(manifest?.fps)||30,sourceFps=Number(manifest?.source_fps)||replayFps;if(frame.tail){const start=frames.findIndex(row=>row.tail),first=start<0?frameIndex:start,total=Math.max(1,frames.length-first);return `最终优化停帧 ${frameIndex-first+1}/${total} · 原始末帧 ${frame.source_frame}`;}return `回放帧 ${frameIndex}（${formatFps(replayFps)} FPS） → 原始帧 ${frame.source_frame}（${formatFps(sourceFps)} FPS） · ${(frame.source_frame/sourceFps).toFixed(2)} s`;}
+function update(index){if(!frames.length)return;frameIndex=Math.max(0,Math.min(frames.length-1,index));const f=frames[frameIndex];seek(f.sequence);const ids=[...new Set(views.flatMap(view=>availableMaps(view)).map(m=>String(m.id)))];for(const option of [...$('maps').options])if(option.value!=='auto'&&!ids.includes(option.value))option.remove();for(const id of ids)if(![...$('maps').options].some(o=>o.value===id))$('maps').add(new Option(id==='marker_world'?'固定码独立参考系':'Map '+id,id));
+ if($('trail-hint')&&manifest?.video_overlays?.trail_gap_display_max_s){const text=`世界轨迹从当前相机观察 · 绿左 / 红右 · 缓存缺口 ≤ ${manifest.video_overlays.trail_gap_display_max_s} s 仅补画，标签不变；失定位停画`;$('trail-hint').textContent=text;$('trail-hint').title=text;}
+ $('status').textContent=`${frameClockLabel(f)} · 事件版本 ${f.sequence} · ${f.tail?'收尾展示：历史轨迹已按最终地图修订重绘；是否接受优化见事件，不输出新标签':'逐帧状态，世界轨迹轻量平滑'} · 定位 ${f.source||'invalid'}${f.metric_recovered_later?'（后续 marker 恢复该历史帧的米制尺度）':''}${f.anchor_consistency?.status==='conflict'?' · 警告：固定 marker 与地图矛盾，当前米制精度不可信':''} · ORB ${f.orb_tracked??'—'}/${f.orb_detected??'—'}（匹配/检测） · 固定世界轴 ${f.world_axes_visible?'可见':'无有效投影'} · 后端 native ORB-SLAM3`;
+ const loop=activeLoopEvent(overview)||activeLoopEvent(localView),reached=reachedLoopEvents(overview);
+ if(loop)$('status').textContent+=` · 回环前 → 回环后：KF ${loop.keyframe_a} ↔ ${loop.keyframe_b}（在候选帧显示，提交于 ${Number(loop.commit_timestamp_s).toFixed(2)} s）`;
+ else if(reached.length)$('status').textContent+=` · 已回写 ${reached.length} 次回环修正`;
+ if(f.marker_world_view)$('status').textContent+=' · marker_world：本帧固定码定位有效，ORB 地图未对齐，不混画点云'+(f.marker_world_view.geometry_source==='unavailable'?'；未缓存固定码布局，仅显示相机和轴':'');
+ const offline=manifest?.offline_preprocessing;if(finalMapReplay()||hybridReplay()){
+  if(manifest.video_overlays?.offline_feature_matching)document.querySelector('#video-panel .bar .hint').textContent='绿框：原始 ORB 跟踪 · 青圈：最终地图离线匹配 · 紫圈：marker 角点 · WORLD：固定世界轴';
+  $('status').textContent=`${frameClockLabel(f)} · 离线最终地图（从0秒展示，非在线建图） · 图 ${f.map_id||'无有效归属'} / 修订 ${f.map_revision} · 定位 ${f.source||'invalid'} · 原始帧 ORB 匹配 ${f.orb_tracked??'—'} / 检测 ${f.orb_detected??'—'}`;
+  if(f.orb_offline_matched)$('status').textContent+=` · 青色圈：离线恢复 ${f.orb_offline_matched} 个图像—地图匹配点，RMS ${Number(f.orb_offline_match_rms_px).toFixed(2)} px（非原始跟踪）${f.orb_offline_display_only ? ' · 补点图 '+f.orb_offline_match_map_id+'，原始位姿标签不变' : ''}`;
+  if(f.localization_recovery)$('status').textContent+=` · 此帧由后续地图离线${f.localization_recovery.method==='final-map-rematched-pose-refinement'?'重新匹配修正':'恢复'}（信息可用时间 ${Number(f.localization_recovery.available_after_timestamp_s).toFixed(2)} s）`;
+  else if(f.metric_recovered_later)$('status').textContent+=' · 此帧尺度由后续观测恢复';
+  if(f.anchor_consistency?.status==='conflict')$('status').textContent+=' · 警告：固定 marker 与地图矛盾，当前米制精度不可信';
+  if(hybridReplay()&&!finalLocalView())$('status').textContent+=` · 右下：当时建图 / 版本 ${f.sequence} / 定位 ${f.process_source||'invalid'}`;
+  if(!validHandCamera(f.camera))$('status').textContent+=' · 此帧离线定位仍无效，不伪造视频点云投影或手部世界姿态';
+ }else{if(offline?.marker_bootstrap_observations)$('status').textContent+=` · 离线多帧消歧：先分析前 ${Number(offline.marker_bootstrap_available_after_s).toFixed(2)} s，再运行本轮建图（非在线因果初始化）`;if(offline?.prefix_relocalized_final_labels)$('status').textContent+=` · 最终标签另追回初始化前 ${offline.prefix_relocalized_final_labels} 帧，过程状态未回填`;}
+ const b=finalMapReplay()?null:revision.marker_bootstrap;if(b){const names={waiting_baseline:'Marker 定位有效，等待背景视差',marker_missing:'固定码缺失，背景尚未建立',insufficient_features:'背景特征不足',stronger_reference:'更新背景参考图像',reference_view_changed:'观察方向改变，更新参考',insufficient_matches:'背景匹配不足',insufficient_geometry:'有效三角化不足',background_ready:'米制背景建图成功'};$('status').textContent+=` · 背景初始化：${names[b.reason]||b.reason} · 参考 ${b.reference_frame} · 匹配 ${b.matches} / 三角化 ${b.triangulated} · 基线 ${(b.baseline_m*1000).toFixed(1)} mm`;}
+ const eventSequence=finalMapReplay()?(f.observation_sequence??f.sequence):f.sequence;
+ $('events').replaceChildren();for(const row of timeline.slice(Math.max(0,eventSequence-240),eventSequence+1))for(const text of row.events){const item=document.createElement('div');item.textContent=row.timestamp.toFixed(3)+'s · '+text;$('events').append(item);}$('events').scrollTop=$('events').scrollHeight;updateVideoLoopBanner();rendered=frameIndex;draw();}
+function clock(time,decoded=false){if(popup||!manifest)return;const sample=decoded?Math.round(time*manifest.fps):Math.floor(time*manifest.fps+.02);const index=Math.max(0,Math.min(frames.length-1,sample));if(index!==rendered){update(index);channel.postMessage({frame:index});}}
+function tick(){if(!('requestVideoFrameCallback'in video))clock(video.currentTime);requestAnimationFrame(tick);}
+function presented(now,metadata){if(!video.paused){presentTimes.push(now);if(presentTimes.length>90)presentTimes.shift();if(presentTimes.length>3)presentFPS=1000*(presentTimes.length-1)/(now-presentTimes[0]);}clock(metadata.mediaTime,true);video.requestVideoFrameCallback(presented);}
+video.addEventListener('seeked',()=>clock(video.currentTime));
+function step(delta){video.pause();const index=Math.max(0,Math.min(frames.length-1,frameIndex+delta));video.currentTime=(index+.1)/manifest.fps;}
+$('play').onclick=()=>{if(!video.paused){video.pause();return;}if(video.ended||(Number.isFinite(video.duration)&&video.currentTime>=video.duration-.05))video.currentTime=0;video.play().catch(error=>$('error').textContent='视频播放失败：'+error.message);};$('begin').onclick=()=>{video.pause();video.currentTime=.1/manifest.fps;};$('end').onclick=()=>{video.pause();video.currentTime=(frames.length-.9)/manifest.fps;};$('back').onclick=()=>step(-1);$('next').onclick=()=>step(1);$('speed').onchange=()=>video.playbackRate=Number($('speed').value);
+$('reset').onclick=()=>{for(const view of views)view.needsFit=true;draw();};$('maps').onchange=()=>{for(const view of views)view.needsFit=true;draw();};$('kfs').onchange=draw;$('popup').onclick=()=>window.open('index.html?map=1','orb-map','width=1500,height=900');
+function zoomHands(factor){handView.zoom=Math.max(.25,Math.min(4,handView.zoom*factor));$('hand-reset').textContent=handView.zoom.toFixed(1)+'×';drawEgoHands();}
+$('hand-minus').onclick=()=>zoomHands(1/1.2);$('hand-plus').onclick=()=>zoomHands(1.2);$('hand-reset').onclick=()=>{handView.zoom=1;zoomHands(1);};
+trajectoryCanvas.onwheel=e=>{e.preventDefault();zoomHands(Math.exp(-e.deltaY*.001));};
+function bindView(view){const c=view.canvas;c.onpointerdown=e=>{view.drag={x:e.clientX,y:e.clientY,pan:e.button===2||e.shiftKey};c.setPointerCapture(e.pointerId);};c.onpointermove=e=>{if(!view.drag)return;const dx=e.clientX-view.drag.x,dy=e.clientY-view.drag.y;if(view.drag.pan){if(view.mode!=='local'){view.pan[0]+=dx;view.pan[1]+=dy;}}else{const yaw=view.yaw+dx*.008,pitch=Math.max(-1.5,Math.min(1.5,view.pitch+dy*.008));for(const other of views){other.yaw=yaw;other.pitch=pitch;}const state=mapOrientations.get(view.orientationKey);if(state){state.yaw=yaw;state.pitch=pitch;}}view.drag.x=e.clientX;view.drag.y=e.clientY;draw();};c.onpointerup=()=>view.drag=null;c.oncontextmenu=e=>e.preventDefault();c.onwheel=e=>{e.preventDefault();view.zoom=Math.max(.02,Math.min(100,view.zoom*Math.exp(-e.deltaY*.001)));draw();};}for(const view of views)bindView(view);
+channel.onmessage=e=>{if(popup&&e.data.frame!==undefined&&manifest)update(e.data.frame);else if(!popup&&e.data.ready)channel.postMessage({frame:frameIndex});};window.onresize=draw;
+$('status').textContent='正在加载地图与轨迹…';
+replayResource('manifest.json').then(r=>r.json()).then(m=>Promise.all([m,gz(m.browser_timeline||'timeline.json.gz').then(decodeTimeline),gz(m.browser_video_frames||'video_frames.json.gz'),gz('points.bin.gz','binary')])).then(([m,t,f,b])=>{manifest=m;timeline=t;frames=f;binary=new DataView(b);indexOriginKeyFrames(timeline);indexInitialMapOrientations(frames);indexFinalPoints();if(m.rendered_at_s)video.src=m.video+'?render='+encodeURIComponent(m.rendered_at_s);if(!m.capabilities?.interval_scale_reanchor)$('scope').textContent='基础版 · 尚无区间尺度再锚定 / marker 跨图合并';if(m.capabilities?.metric_tag_visual_loop===true&&m.capabilities?.metric_tag_pose_graph_factors===true&&m.capabilities?.metric_tag_visual_merge===false)$('scope').textContent+=' · 固定码角点参与同图回环联合优化；跨图纯视觉合并仍拒绝';else if(m.capabilities?.metric_tag_visual_loop===true&&m.capabilities?.metric_tag_visual_merge===false)$('scope').textContent+=' · 固定码图支持旧版 gauge 固定的同图视觉回环；跨图纯视觉合并仍拒绝';else if(m.capabilities?.metric_tag_visual_loop_merge===false)$('scope').textContent+=' · 固定码图不提交未经验证的纯视觉校正'+(m.capabilities.correction_rejection_events?'':'（旧记录未验证保护）');if(finalMapReplay()||hybridReplay()){document.title=hybridReplay()&&!finalLocalView()?'离线重建与真实建图对照':'离线最终地图与动作回放';document.querySelector('header strong').textContent=hybridReplay()&&!finalLocalView()?'离线重建 / 当时建图':'离线最终地图 / ORB';document.querySelector('.map-title').textContent='全局 Atlas · 最终点云（从0秒展示）';if(hybridReplay()){document.querySelectorAll('.map-title')[1].textContent=finalLocalView()?'当前帧局部视窗 · 离线最优手部与轨迹':'当前帧局部视窗 · 当时建图过程';document.querySelector('#trajectory-panel .bar strong').textContent='第一视角 · 离线最优手部与轨迹';}}update(0);if(popup)channel.postMessage({ready:true});else if('requestVideoFrameCallback'in video)video.requestVideoFrameCallback(presented);requestAnimationFrame(tick);}).catch(error=>$('error').textContent='回放载入失败：'+error.message);
+</script><script src="replay_event_overlay.js"></script></body></html>

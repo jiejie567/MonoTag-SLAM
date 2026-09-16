@@ -1,0 +1,5 @@
+# Optional Python 3.12 environment. The Python 3.9 SLAM environment stays unchanged.
+numpy>=1.26,<3
+scipy>=1.11
+opencv-python-headless>=4.10
+lerobot>=0.4.0,<0.5.0
