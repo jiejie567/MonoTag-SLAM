@@ -222,6 +222,8 @@ target_link_libraries(marker_graph_regression ${PROJECT_NAME})
 add_executable(relocalize_prefix_readonly EXCLUDE_FROM_ALL
         Examples/Monocular/relocalize_prefix_readonly.cc)
 target_link_libraries(relocalize_prefix_readonly ${PROJECT_NAME})
+add_executable(relocalize_gap EXCLUDE_FROM_ALL Examples/Monocular/relocalize_gap.cc)
+target_link_libraries(relocalize_gap ${PROJECT_NAME})
 add_executable(temporal_flow_regression EXCLUDE_FROM_ALL
         Examples/Monocular/temporal_flow_regression.cc)
 target_link_libraries(temporal_flow_regression ${PROJECT_NAME})

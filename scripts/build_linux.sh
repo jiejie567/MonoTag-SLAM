@@ -12,6 +12,6 @@ COMMON=(-DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17
 cmake -S "$NATIVE/Thirdparty/DBoW2" -B "$NATIVE/build-dbow-linux" "${COMMON[@]}"
 cmake --build "$NATIVE/build-dbow-linux" -j "$BUILD_JOBS"
 cmake -S "$NATIVE" -B "$NATIVE/build" "${COMMON[@]}"
-cmake --build "$NATIVE/build" -j "$BUILD_JOBS" --target mono_tum_headless relocalize_prefix_readonly \
+cmake --build "$NATIVE/build" -j "$BUILD_JOBS" --target mono_tum_headless relocalize_prefix_readonly relocalize_gap \
   marker_graph_regression marker_map_merge_regression marker_graph_coordinator_regression atlas_scale_regression \
   portable_frontend_regression portable_random_regression

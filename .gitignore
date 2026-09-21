@@ -17,3 +17,9 @@ output/
 *.o
 *.osa
 *.local.json
+.monotag/
+third_party/ORB_SLAM3/Vocabulary/
+third_party/ORB_SLAM3/Examples/Monocular/mono_tum_headless
+third_party/ORB_SLAM3/Examples/Monocular/relocalize_prefix_readonly
+third_party/ORB_SLAM3/Examples/Monocular/relocalize_gap
+third_party/ORB_SLAM3/Examples/Monocular/*_regression

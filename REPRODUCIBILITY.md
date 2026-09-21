@@ -40,4 +40,23 @@ The source release excludes raw or identifiable recordings, generated maps and c
 
 The camera-reference experiments use odometry from a lidar--visual system as a reference trajectory, not as an input to MonoTag and not as independently verified absolute ground truth. SE(3) and Sim(3) results must be reported separately. Static wrist-constellation sequences evaluate precision, not absolute anatomical wrist accuracy.
 
-Small source tables and representative videos are provided in the companion anonymous project repository. Raw recordings are withheld during review because they may contain identifiable indoor imagery.
+Small source tables and representative videos are provided in the companion
+[MonoEgo repository](https://github.com/jiejie567/MonoEgo). Raw indoor recordings
+remain excluded because they may contain identifiable imagery.
+
+## Release packaging, 2026-09-21
+
+The fresh-build and release-test results are recorded in
+[the release check](docs/RELEASE_CHECK_20260921.md).
+
+The company-branded release retains the validated algorithm source and profile.
+It adds the previously external short-gap localizer source and CMake target,
+plus a fresh-checkout runtime generator (`scripts/init_runtime.py`). The gap
+localizer uses its corresponding frozen `shared_localizer.cc`; it is not silently
+substituted with a newer prefix implementation. No estimator thresholds, feature
+switches or reported measurements were changed for packaging.
+
+The generator binds local rebuilt binaries and vocabulary without private paths
+or optional hand weights. Its generated JSON is ignored by Git. The old resource
+provisioning utility remains available for advanced hand-inference deployments;
+it is not required for SLAM-only setup.
