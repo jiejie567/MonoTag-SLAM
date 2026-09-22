@@ -14,7 +14,29 @@
 
 MonoTag 在 ORB-SLAM3 的自然特征地图中引入已知尺寸的 marker 角点约束，从单目视频重建米制相机轨迹。它面向离线处理，支持 marker 优先初始化、视觉地图米制化、区间尺度再锚定、共同 marker 合图，以及有几何证据支持的历史帧回溯定位。
 
-仓库沿用 **EgoMono** 名称以保持链接兼容；算法名称是 **MonoTag SLAM**，完整采集系统叫 **MonoEgo**。目前是 private 的待发布整理版。
+本仓库名为 **MonoTag-SLAM**，完整采集系统叫 **MonoEgo**。目前是 private 的待发布整理版。
+
+## 视频演示
+
+点击预览图打开 MP4。片段来自已有离线结果，不代表实时处理速度。左下显示最终 Atlas，右下显示记录的建图过程和已提交更新；保留隐私遮挡。
+
+### 离线回溯（12 秒）
+
+[![回溯恢复地图匹配](docs/videos/retrospective.jpg)](docs/videos/retrospective.mp4)
+
+利用后续地图证据恢复更早帧的匹配；不保证所有数据都能从第零帧恢复，也不是原版 ORB-SLAM3 对比实验。
+
+### 尺度重锚定（8 秒）
+
+[![尺度重锚定](docs/videos/reanchoring.jpg)](docs/videos/reanchoring.mp4)
+
+原始时间 121.73 秒提交 ×1.0295 尺度修正，点云与轨迹高亮显示变化。
+
+### 合图与视觉回环（18 秒）
+
+[![合图和回环](docs/videos/merge-loop.jpg)](docs/videos/merge-loop.mp4)
+
+原始时间 187.73 秒合图，188.40 秒发布视觉回环更新，采用 0.5 倍速展示。[片段来源](docs/videos/README.md)。
 
 ## 核心功能
 

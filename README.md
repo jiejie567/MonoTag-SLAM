@@ -13,7 +13,29 @@ English | [中文](README_CN.md)
 
 MonoTag combines natural image features with known-size square markers to reconstruct metric camera motion from one RGB camera. Built on ORB-SLAM3, it uses marker corners in geometric optimization, revisits earlier frames offline, and maintains an Atlas across multiple maps.
 
-The repository retains the name **EgoMono** for link compatibility. **MonoTag SLAM** is the backend; **MonoEgo** is the complete capture system. This is a prepared source release, currently private.
+**MonoTag-SLAM** hosts the backend; **MonoEgo** is the complete capture system. This is a prepared source release, currently private.
+
+## Video demonstrations
+
+Click a preview to open its MP4. These are excerpts of existing offline results, not real-time performance demonstrations. The left Atlas panel shows the final map; the right panel shows recorded construction and committed updates. Privacy masking is retained.
+
+### Retrospective map matches (12 s)
+
+[![Offline retrospective recovery](docs/videos/retrospective.jpg)](docs/videos/retrospective.mp4)
+
+Later map evidence recovers earlier image-to-map matches. This example is not a guarantee of frame-zero recovery, nor a vanilla ORB-SLAM3 benchmark.
+
+### Metric re-anchoring (8 s)
+
+[![Metric re-anchoring](docs/videos/reanchoring.jpg)](docs/videos/reanchoring.mp4)
+
+Accepted update at source time 121.73 s: scale ×1.0295, with highlighted geometry.
+
+### Common-anchor merge and visual loop closure (18 s)
+
+[![Map merge and loop update](docs/videos/merge-loop.jpg)](docs/videos/merge-loop.mp4)
+
+Maps merge at source time 187.73 s; a visual-loop update is published at 188.40 s. Playback is slowed to 0.5×. [Clip provenance](docs/videos/README.md).
 
 ## Method at a glance
 
