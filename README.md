@@ -21,19 +21,19 @@ Click a preview to open its MP4. These are excerpts of existing offline results,
 
 ### Retrospective map matches (12 s)
 
-[![Offline retrospective recovery](docs/videos/retrospective.jpg)](docs/videos/retrospective.mp4)
+[![Offline retrospective recovery](docs/videos/retrospective.gif)](docs/videos/retrospective.mp4)
 
 Later map evidence recovers earlier image-to-map matches. This example is not a guarantee of frame-zero recovery, nor a vanilla ORB-SLAM3 benchmark.
 
 ### Metric re-anchoring (8 s)
 
-[![Metric re-anchoring](docs/videos/reanchoring.jpg)](docs/videos/reanchoring.mp4)
+[![Metric re-anchoring](docs/videos/reanchoring.gif)](docs/videos/reanchoring.mp4)
 
 Accepted update at source time 121.73 s: scale ×1.0295, with highlighted geometry.
 
 ### Common-anchor merge and visual loop closure (18 s)
 
-[![Map merge and loop update](docs/videos/merge-loop.jpg)](docs/videos/merge-loop.mp4)
+[![Map merge and loop update](docs/videos/merge-loop.gif)](docs/videos/merge-loop.mp4)
 
 Maps merge at source time 187.73 s; a visual-loop update is published at 188.40 s. Playback is slowed to 0.5×. [Clip provenance](docs/videos/README.md).
 

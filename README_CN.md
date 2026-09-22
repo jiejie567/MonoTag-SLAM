@@ -22,19 +22,19 @@ MonoTag 在 ORB-SLAM3 的自然特征地图中引入已知尺寸的 marker 角�
 
 ### 离线回溯（12 秒）
 
-[![回溯恢复地图匹配](docs/videos/retrospective.jpg)](docs/videos/retrospective.mp4)
+[![回溯恢复地图匹配](docs/videos/retrospective.gif)](docs/videos/retrospective.mp4)
 
 利用后续地图证据恢复更早帧的匹配；不保证所有数据都能从第零帧恢复，也不是原版 ORB-SLAM3 对比实验。
 
 ### 尺度重锚定（8 秒）
 
-[![尺度重锚定](docs/videos/reanchoring.jpg)](docs/videos/reanchoring.mp4)
+[![尺度重锚定](docs/videos/reanchoring.gif)](docs/videos/reanchoring.mp4)
 
 原始时间 121.73 秒提交 ×1.0295 尺度修正，点云与轨迹高亮显示变化。
 
 ### 合图与视觉回环（18 秒）
 
-[![合图和回环](docs/videos/merge-loop.jpg)](docs/videos/merge-loop.mp4)
+[![合图和回环](docs/videos/merge-loop.gif)](docs/videos/merge-loop.mp4)
 
 原始时间 187.73 秒合图，188.40 秒发布视觉回环更新，采用 0.5 倍速展示。[片段来源](docs/videos/README.md)。
 

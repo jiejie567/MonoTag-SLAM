@@ -16,3 +16,9 @@ recorded construction and committed events. Highlight timing refers to the event
 publication shown in the existing replay, not wall-clock optimizer runtime.
 
 These previews demonstrate behavior, not an accuracy benchmark.
+
+README animations are 7-second looping GIF excerpts, 800 × 450 at 10 FPS.
+They retain the MP4 playback timing (no additional speed-up): retrospective
+uses clip seconds 1–8, re-anchoring 1–8, and merge/loop 5–12. Click the
+animation for the complete 1080p MP4. GIF playback can depend on viewer
+accessibility and reduced-motion preferences.
