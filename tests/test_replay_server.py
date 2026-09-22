@@ -8,7 +8,7 @@ from urllib.error import HTTPError
 from urllib.parse import urlunsplit
 from urllib.request import Request, urlopen
 
-from replay_orb_slam import ReplayHandler
+from tools.replay_orb_slam import ReplayHandler
 
 
 class ReplayServerTests(unittest.TestCase):

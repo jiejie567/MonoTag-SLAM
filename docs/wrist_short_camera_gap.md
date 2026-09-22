@@ -1,6 +1,6 @@
 # 同一世界坐标系的短相机缺口：腕部联合优化
 
-正式导出默认启用，位于 `export_action_labels.py::_optimize_wrists_by_submap`。
+正式导出默认启用，位于 `tools/export_action_labels.py::_optimize_wrists_by_submap`。
 
 相机一帧失效会使该帧的 world/map ID 为空，但不意味着前后有效观测属于不同地图。
 原来的外层连续分段会把短缺口两侧独立求解，使单面腕码的深度/倾角弱约束在两侧形成不同偏差。

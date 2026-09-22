@@ -117,7 +117,7 @@ def sequence_cache_key(
         Path(__file__).with_name("marker_corners.py"),
         Path(__file__).with_name("marker_temporal_admission.py"),
         Path(__file__).with_name("orbslam3_backend.py"),
-        Path(__file__).resolve().parent.parent / "export_action_labels.py",
+        Path(__file__).resolve().parent.parent / "tools/export_action_labels.py",
     ]
     optional_lengths = {
         len(values)

@@ -14,7 +14,7 @@ from aruco_track.models import BandLayout, Calibration, Pose
 from aruco_track.marker_corners import TrackedMarkerObservation
 from aruco_track.orbslam3_backend import MetricOrbSlamResult
 from aruco_track.slam_sequence_cache import SlamSequenceCache, sequence_cache_key
-from export_action_labels import _run_deferred_head_slam
+from tools.export_action_labels import _run_deferred_head_slam
 
 
 class IntegrationGuards(unittest.TestCase):
@@ -89,11 +89,11 @@ class IntegrationGuards(unittest.TestCase):
             with patch.dict(os.environ, {'ORB_SLAM3_OFFLINE_MARKER_BOOTSTRAP': '1', 'ORB_SLAM3_PREFIX_RELOCALIZATION': '0'}), \
                     patch('aruco_track.marker_corners.MarkerCornerTracker', FakeTracker), \
                     patch('aruco_track.marker_bootstrap.bootstrap_initial_marker_observations', side_effect=bootstrap), \
-                    patch('export_action_labels.SlamSequenceCache', return_value=SlamSequenceCache(root / 'cache')), \
-                    patch('export_action_labels.run_orbslam3_sequence', side_effect=native), \
-                    patch('export_action_labels.read_native_result', side_effect=result), \
+                    patch('tools.export_action_labels.SlamSequenceCache', return_value=SlamSequenceCache(root / 'cache')), \
+                    patch('tools.export_action_labels.run_orbslam3_sequence', side_effect=native), \
+                    patch('tools.export_action_labels.read_native_result', side_effect=result), \
                     patch('aruco_track.orbslam3_backend.refine_final_frame_poses', side_effect=lambda value, *_args: value), \
-                    patch('export_action_labels.prepare_slam_frame', side_effect=prepare):
+                    patch('tools.export_action_labels.prepare_slam_frame', side_effect=prepare):
                 _run_deferred_head_slam(video, records, calibration, [{24: good}] * 2,
                     [pose] * 2, [.9] * 2, [(24,)] * 2, layout, ['world_board'] * 2,
                     root / 'replay', 'auto', None, root / 'atlas.osa',

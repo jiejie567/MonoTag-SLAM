@@ -60,14 +60,14 @@ def main():
                    SLAM_SEQUENCE_CACHE_DIR='/tmp/monotag-production-slam-cache',
                    LD_LIBRARY_PATH=':'.join(map(str,[native/'lib',native/'Thirdparty/DBoW2/lib',
                       native/'Thirdparty/g2o/lib',deps/'opencv-4.10/lib',deps/'pangolin/lib'])))
-        command=[sys.executable,'-B',str(ROOT/'export_action_labels.py'),*arguments(req['arguments'])]
+        command=[sys.executable,'-B',str(ROOT/'tools/export_action_labels.py'),*arguments(req['arguments'])]
         status.update(command=command,environment={k:v for k,v in env.items() if k.startswith('ORB_SLAM3_')});save()
         print('SERVER: observation analysis / native SLAM / offline optimization / replay',flush=True)
         subprocess.run(command,cwd=ROOT,env=env,check=True)
         replay=output/'actions_replay'
         if req['arguments']['slam_replay']:
             print('SERVER: verifying replay',flush=True)
-            subprocess.run([sys.executable,'-B',str(ROOT/'verify_slam_replay.py'),str(replay)],cwd=ROOT,env=env,check=True)
+            subprocess.run([sys.executable,'-B',str(ROOT/'tools/verify_slam_replay.py'),str(replay)],cwd=ROOT,env=env,check=True)
         meta=json.loads((output/'actions.meta.json').read_text())
         with (output/'actions.jsonl').open() as f: count=sum(1 for _ in f)
         if count!=meta['frames']:raise ValueError('Incomplete labels')

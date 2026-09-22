@@ -28,7 +28,7 @@ run_one() {
         return 1
     fi
     local command=(
-        .venv/bin/python export_action_labels.py "$video"
+        .venv/bin/python tools/export_action_labels.py "$video"
         --calib "$calibration"
         --band "$left_band" --band "$right_band"
         --head-slam --auto-marker-map

@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+# Support direct execution from a source checkout.
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+
 import argparse
 import atexit
 from collections import Counter, deque
@@ -757,7 +762,7 @@ def _run_deferred_head_slam(
     fps = float(fps_capture.get(cv2.CAP_PROP_FPS)) or 30.0
     fps_capture.release()
     initialization_frame = 0
-    project_dir = Path(__file__).resolve().parent
+    project_dir = Path(__file__).resolve().parents[1]
     sequence_cache = SlamSequenceCache(sequence_cache_root(project_dir))
     cache_key = sequence_cache_key(
         video_path,
@@ -1187,7 +1192,7 @@ def main() -> None:
     if args.execution == 'server':
         run_remote_pipeline(args)
         return
-    production = Path(__file__).resolve().parent/'config/production.json'
+    production = Path(__file__).resolve().parents[1]/'config/production.json'
     if production.is_file():
         for name, value in json.loads(production.read_text())['environment'].items():
             os.environ.setdefault(name, value)
@@ -2449,7 +2454,7 @@ def main() -> None:
             with output_path.open() as replay_stream:
                 replay_actions = [json.loads(line) for line in replay_stream if line.strip()]
             replay_features = prepare_final_replay_features(
-                Path(__file__).resolve().parent, video_path, replay_dir, replay_dir,
+                Path(__file__).resolve().parents[1], video_path, replay_dir, replay_dir,
                 orbslam3_result.history, replay_actions, calibration, fps,
                 atlas_path=save_atlas)
             process_path, orb_map_viewer_path = write_slam_replay(
@@ -2867,7 +2872,7 @@ def main() -> None:
             (replay_dir / f"camera_{map_id}.tum").write_text("\n".join(lines) + "\n")
     metadata_path.write_text(json.dumps(metadata, indent=2, allow_nan=False) + "\n")
     if args.lerobot_output is not None:
-        optional_python = Path(__file__).with_name(".venv-vla") / "bin" / "python"
+        optional_python = Path(__file__).resolve().parents[1] / ".venv-vla" / "bin" / "python"
         if not optional_python.is_file():
             raise SystemExit(
                 "LeRobot export requires the isolated optional environment; run "

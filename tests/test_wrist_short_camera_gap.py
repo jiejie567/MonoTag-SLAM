@@ -5,7 +5,7 @@ from unittest.mock import patch
 import cv2
 import numpy as np
 
-import export_action_labels as exporter
+from tools import export_action_labels as exporter
 from aruco_track.camera_state import FusedCameraFrame
 from aruco_track.models import Calibration, Pose
 from aruco_track.tag_graph import WristTrajectoryResult, optimize_wrist_trajectory

@@ -33,7 +33,7 @@ def main():
         meta = json.loads((ROOT/metadata).read_text())
         directory = OUT/name
         directory.mkdir()
-        cmd = [sys.executable, 'export_action_labels.py', meta['video'],
+        cmd = [sys.executable, 'tools/export_action_labels.py', meta['video'],
                '--calib', meta['calibration'], '--head-slam', '--slam-init', 'auto',
                '--auto-marker-map', '--static-marker-ids', '20-49',
                '--static-marker-size-mm', str(meta['auto_marker_map']['marker_size_mm']),

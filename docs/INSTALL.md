@@ -62,16 +62,16 @@ Choose a fresh output directory for each run:
 ```
 
 The 48 mm size and ID range are examples, not defaults suitable for every
-recording. For full exporter options use `export_action_labels.py --help`.
+recording. For full exporter options use `tools/export_action_labels.py --help`.
 `--no-hand-joints` skips learned hand inference, not geometric wrist-marker
 observations. Hand inference requires separately obtained licensed models;
 MANO assets and model weights are not distributed here.
 
 ```bash
-.venv/bin/python render_slam_replay.py runs/demo/actions.jsonl --hybrid
+.venv/bin/python tools/render_slam_replay.py runs/demo/actions.jsonl --hybrid
 ```
 
 Use the local replay server rather than opening the HTML via `file://`.
-See `replay_orb_slam.py --help` for the serving interface. The renderer needs
+See `tools/replay_orb_slam.py --help` for the serving interface. The renderer needs
 the original video, calibration and cached native replay referenced by the
 actions metadata; an actions JSONL alone is not a self-contained replay package.

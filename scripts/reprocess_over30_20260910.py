@@ -113,7 +113,7 @@ def main():
     snapshot['files_sha256'][str(rel)] = helper.digest(RUNTIME/rel)
     save(OUT/'runtime_manifest.json', snapshot)
     sys.path.insert(0, str(RUNTIME))
-    from replay_orb_slam import ReplayHandler
+    from tools.replay_orb_slam import ReplayHandler
     server = ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(ReplayHandler, directory=str(OUT)))
     threading.Thread(target=server.serve_forever, daemon=True).start()
     save(OUT/'server.json', dict(url=f'http://127.0.0.1:{server.server_port}/index.html', pid=os.getpid()))
@@ -130,7 +130,7 @@ def main():
     for r in records:
         d = OUT/r['name']; d.mkdir()
         auto = r['marker_config']
-        command = [sys.executable, '-B', str(RUNTIME/'export_action_labels.py'), r['video'], '--calib',r['frozen_calibration'],
+        command = [sys.executable, '-B', str(RUNTIME/'tools/export_action_labels.py'), r['video'], '--calib',r['frozen_calibration'],
                    '--head-slam','--slam-init','auto','--auto-marker-map','--static-marker-ids',','.join(map(str,auto['static_marker_ids'])),
                    '--static-marker-size-mm',str(auto['marker_size_mm']), '--hand-joints','--hand-model',str(RUNTIME/'models/hand_landmarker.task'),
                    '--no-slam-dynamic-filter','--slam-replay','--output',str(d/'actions.jsonl')]
@@ -145,7 +145,7 @@ def main():
                 subprocess.run(command,cwd=RUNTIME,env=env,stdout=log,stderr=subprocess.STDOUT,check=True)
             r['status']='verifying';publish(records)
             with (d/'verification.log').open('w') as log:
-                subprocess.run([sys.executable,'-B',str(RUNTIME/'verify_slam_replay.py'),str(d/'actions_replay')],
+                subprocess.run([sys.executable,'-B',str(RUNTIME/'tools/verify_slam_replay.py'),str(d/'actions_replay')],
                                cwd=RUNTIME,env=env,stdout=log,stderr=subprocess.STDOUT,check=True)
             from urllib.request import Request, urlopen
             url=f'http://127.0.0.1:{server.server_port}/{r["name"]}/actions_replay/'

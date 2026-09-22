@@ -11,7 +11,7 @@ from aruco_track.hawor_backend import HaworHandTracker, _read_predictions, _effe
 import cv2
 from aruco_track.hands import joint_pose_to_dict, raw_hand_from_dict
 from aruco_track.models import Calibration, Pose
-from export_action_labels import _load_observation_cache, _prepare_export_hawor_predictions
+from tools.export_action_labels import _load_observation_cache, _prepare_export_hawor_predictions
 from tests import test_cached_observations
 
 
@@ -155,7 +155,7 @@ class HaworExportCacheTests(unittest.TestCase):
             config_path='runtime.json', device='auto', cached_metadata=self.metadata)
 
     def test_same_policy_reuses_original_path_through_strict_prepare(self):
-        with patch('export_action_labels.prepare_hawor_predictions',
+        with patch('tools.export_action_labels.prepare_hawor_predictions',
                    return_value=(self.previous, self.provenance)) as prepare:
             self.assertEqual(self.prepare(), (self.previous, self.provenance))
         prepare.assert_called_once_with('video.mp4', 'camera.json', self.previous,
@@ -166,7 +166,7 @@ class HaworExportCacheTests(unittest.TestCase):
         messages = ['HaWoR cache differs or is unverified; refusing to overwrite it',
                     f'HaWoR observation cache is unverified or different: {self.previous}; choose a new output path']
         for message in messages:
-            with self.subTest(message=message), patch('export_action_labels.prepare_hawor_predictions',
+            with self.subTest(message=message), patch('tools.export_action_labels.prepare_hawor_predictions',
                     side_effect=[ValueError(message), (self.output, {})]) as prepare:
                 self.assertEqual(self.prepare(), (self.output, {}))
                 self.assertEqual([call.args[2] for call in prepare.call_args_list],
@@ -174,7 +174,7 @@ class HaworExportCacheTests(unittest.TestCase):
 
     def test_network_and_other_validation_errors_do_not_trigger_another_inference(self):
         for error in (RuntimeError('SSH connection failed'), ValueError('incomplete HaWoR prediction cache')):
-            with self.subTest(error=error), patch('export_action_labels.prepare_hawor_predictions',
+            with self.subTest(error=error), patch('tools.export_action_labels.prepare_hawor_predictions',
                                                    side_effect=error) as prepare:
                 with self.assertRaises(type(error)) as raised:
                     self.prepare()
@@ -183,35 +183,35 @@ class HaworExportCacheTests(unittest.TestCase):
 
     def test_prediction_corruption_is_not_treated_as_signature_change(self):
         self.previous.write_text('changed raw predictions')
-        with patch('export_action_labels.prepare_hawor_predictions') as prepare:
+        with patch('tools.export_action_labels.prepare_hawor_predictions') as prepare:
             with self.assertRaisesRegex(ValueError, 'raw-cache content changed'):
                 self.prepare()
             prepare.assert_not_called()
 
     def test_metrics_corruption_is_not_treated_as_signature_change(self):
         self.previous.with_suffix('.metrics.json').write_text('changed metrics')
-        with patch('export_action_labels.prepare_hawor_predictions') as prepare:
+        with patch('tools.export_action_labels.prepare_hawor_predictions') as prepare:
             with self.assertRaisesRegex(ValueError, 'raw-cache content changed'):
                 self.prepare()
             prepare.assert_not_called()
 
     def test_provenance_mismatch_fails_explicitly(self):
         self.previous.with_suffix('.meta.json').write_text('{}')
-        with patch('export_action_labels.prepare_hawor_predictions') as prepare:
+        with patch('tools.export_action_labels.prepare_hawor_predictions') as prepare:
             with self.assertRaisesRegex(ValueError, 'metadata differs'):
                 self.prepare()
             prepare.assert_not_called()
 
     def test_missing_raw_path_prepares_new_output(self):
         self.previous.unlink()
-        with patch('export_action_labels.prepare_hawor_predictions', return_value=(self.output, {})) as prepare:
+        with patch('tools.export_action_labels.prepare_hawor_predictions', return_value=(self.output, {})) as prepare:
             self.prepare()
             self.assertEqual(prepare.call_args.args[2], self.output)
             prepare.assert_called_once()
 
     def test_changed_policy_does_not_reuse_prior_hawor_cache(self):
         self.metadata['hand_recovery_policy'] = {'version':'old-policy'}
-        with patch('export_action_labels.prepare_hawor_predictions', return_value=(self.output, {})) as prepare:
+        with patch('tools.export_action_labels.prepare_hawor_predictions', return_value=(self.output, {})) as prepare:
             self.prepare()
             self.assertEqual(prepare.call_args.args[2], self.output)
             prepare.assert_called_once()

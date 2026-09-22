@@ -2,6 +2,11 @@
 """Upgrade hand measurements from source RGB, with the finished SLAM/wrists frozen."""
 from __future__ import annotations
 
+# Support direct execution from a source checkout.
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+
 import argparse
 from collections import Counter
 import copy
@@ -21,10 +26,10 @@ from aruco_track.hawor_backend import (
 )
 from aruco_track.models import BandLayout
 from aruco_track.slam_replay import _pose_from_action, _replay_wrist_camera
-from export_action_labels import (
+from tools.export_action_labels import (
     _rebind_cached_joints, _world_landmarks, _observation_input_fingerprints,
 )
-from render_slam_replay import load_replay_calibration
+from tools.render_slam_replay import load_replay_calibration
 
 
 def frozen_fields(record):

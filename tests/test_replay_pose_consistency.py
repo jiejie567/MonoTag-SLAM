@@ -16,9 +16,7 @@ import numpy as np
 from aruco_track.models import BandLayout, Calibration, Pose
 from aruco_track.orbslam3_backend import read_native_result
 from aruco_track.slam_replay import trails_at_revision, _world_axis_pixels
-import render_slam_replay
-
-
+from tools import render_slam_replay
 def snapshot(state=4, metric=False):
     return {'timestamp': 0., 'final': False, 'state': state, 'active_map': 0,
             'pose': [2., 0., -1., 0., 0., 0., 1.] if state in (2, 6) else None,
@@ -693,8 +691,8 @@ class ReplayCalibrationTests(unittest.TestCase):
         metadata = {'video': 'cached.mp4', 'calibration': 'calibration.json'}
         if metadata_size is not None:
             metadata['image_size'] = metadata_size
-        with patch('render_slam_replay.cv2.VideoCapture', return_value=capture), \
-             patch('render_slam_replay.Calibration.load', return_value=self.calibration()):
+        with patch('tools.render_slam_replay.cv2.VideoCapture', return_value=capture), \
+             patch('tools.render_slam_replay.Calibration.load', return_value=self.calibration()):
             try:
                 return render_slam_replay.load_replay_calibration(metadata)
             finally:
@@ -719,11 +717,11 @@ class ReplayCalibrationTests(unittest.TestCase):
             self.load_for_size((1280, 720), [1920, 1080])
 
     def test_existing_render_is_not_overwritten_or_opened_without_explicit_flag(self):
-        with patch('sys.argv', ['render_slam_replay.py', 'actions.jsonl']), \
+        with patch('sys.argv', ['tools/render_slam_replay.py', 'actions.jsonl']), \
              patch('pathlib.Path.read_text', return_value=json.dumps({'replay': '/in_memory/index.html'})), \
              patch('pathlib.Path.exists', return_value=True), \
-             patch('render_slam_replay.load_replay_calibration') as load, \
-             patch('render_slam_replay.write_slam_replay') as render, \
+             patch('tools.render_slam_replay.load_replay_calibration') as load, \
+             patch('tools.render_slam_replay.write_slam_replay') as render, \
              patch('sys.stderr', new_callable=io.StringIO) as errors:
             with self.assertRaises(SystemExit) as failure:
                 render_slam_replay.main()
@@ -748,9 +746,9 @@ class ReplayCalibrationTests(unittest.TestCase):
             history[-1]['final'] = True
             with gzip.open(replay / 'native_history.jsonl.gz', 'wt') as stream:
                 stream.write('\n'.join(json.dumps(frame) for frame in history) + '\n')
-            with patch('sys.argv', ['render_slam_replay.py', str(actions_path), '--replace-render']), \
-                 patch('render_slam_replay.load_replay_calibration', return_value=self.calibration()), \
-                 patch('render_slam_replay.write_slam_replay') as render:
+            with patch('sys.argv', ['tools/render_slam_replay.py', str(actions_path), '--replace-render']), \
+                 patch('tools.render_slam_replay.load_replay_calibration', return_value=self.calibration()), \
+                 patch('tools.render_slam_replay.write_slam_replay') as render:
                 render_slam_replay.main()
             self.assertEqual(render.call_args.kwargs['actions'], rows)
 

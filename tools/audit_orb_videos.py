@@ -351,7 +351,7 @@ def _command(row: dict[str, Any], destination: Path) -> list[str]:
     output = destination / "actions.jsonl"
     command = [
         str(PROJECT / ".venv" / "bin" / "python"),
-        str(PROJECT / "export_action_labels.py"),
+        str(PROJECT / "tools/export_action_labels.py"),
         str(row["video"]),
         "--calib", str(row["calibration"]),
         "--output", str(output),

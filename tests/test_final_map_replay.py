@@ -15,9 +15,7 @@ from aruco_track.replay_browser import decode_timeline
 from aruco_track.slam_replay import (
     _TrailReplayCache, final_label_camera_frame, write_slam_replay,
 )
-import render_slam_replay
-
-
+from tools import render_slam_replay
 def pose(x=.1, y=0., z=-1.):
     return {'translation_m': [x, y, z],
             'quaternion_wxyz': [1., 0., 0., 0.],
@@ -324,12 +322,12 @@ class FinalMapCliTests(unittest.TestCase):
             originals = {path: path.read_bytes() for path in [*source.iterdir(), actions_path, metadata_path]}
             target = root / 'actions_replay_final'
             history = [snapshot(), snapshot(final=True)]
-            with patch('sys.argv', ['render_slam_replay.py', str(actions_path), '--final-map']), \
-                 patch('render_slam_replay.load_replay_calibration', return_value=MagicMock()), \
-                 patch('render_slam_replay.resolve_native_history_path',
+            with patch('sys.argv', ['tools/render_slam_replay.py', str(actions_path), '--final-map']), \
+                 patch('tools.render_slam_replay.load_replay_calibration', return_value=MagicMock()), \
+                 patch('tools.render_slam_replay.resolve_native_history_path',
                        return_value=source / 'native_history.jsonl') as resolve_history, \
-                 patch('render_slam_replay.read_native_history', return_value=history), \
-                 patch('render_slam_replay.write_slam_replay', return_value=(
+                 patch('tools.render_slam_replay.read_native_history', return_value=history), \
+                 patch('tools.render_slam_replay.write_slam_replay', return_value=(
                      target / 'process.mp4', target / 'index.html')) as render, \
                  patch('builtins.print'):
                 render_slam_replay.main()
@@ -343,8 +341,8 @@ class FinalMapCliTests(unittest.TestCase):
             for path, data in originals.items():
                 self.assertEqual(path.read_bytes(), data)
             (target / 'process.mp4').write_text('existing final render')
-            with patch('sys.argv', ['render_slam_replay.py', str(actions_path), '--final-map']), \
-                 patch('render_slam_replay.write_slam_replay') as render, \
+            with patch('sys.argv', ['tools/render_slam_replay.py', str(actions_path), '--final-map']), \
+                 patch('tools.render_slam_replay.write_slam_replay') as render, \
                  patch('sys.stderr', new=MagicMock()), \
                  self.assertRaises(SystemExit) as error:
                 render_slam_replay.main()

@@ -11,7 +11,7 @@ from track import offline_processing_command
 
 class OfflineProcessingCommandTests(unittest.TestCase):
     def test_dynamic_filter_defaults_off_and_can_be_enabled(self):
-        from export_action_labels import main
+        from tools.export_action_labels import main
 
         class ArgumentsCaptured(Exception):
             pass
@@ -26,19 +26,19 @@ class OfflineProcessingCommandTests(unittest.TestCase):
                     captured.append(parse_args(parser, *args, **kwargs))
                     raise ArgumentsCaptured
 
-                arguments = ["export_action_labels.py", "raw.avi", "--head-slam", *flags]
+                arguments = ["tools/export_action_labels.py", "raw.avi", "--head-slam", *flags]
                 with patch("sys.argv", arguments), patch.object(argparse.ArgumentParser, "parse_args", capture):
                     with self.assertRaises(ArgumentsCaptured):
                         main()
                 self.assertEqual(captured[0].slam_dynamic_filter, expected)
 
     def test_existing_explicit_debug_video_is_rejected_before_analysis(self):
-        from export_action_labels import main
+        from tools.export_action_labels import main
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             video = root / 'existing.mp4'
             video.write_bytes(b'keep existing video')
-            arguments = ['export_action_labels.py', 'raw.avi', '--band', 'band.json',
+            arguments = ['tools/export_action_labels.py', 'raw.avi', '--band', 'band.json',
                          '--world-board', 'board.json', '--head-slam',
                          '--output', str(root/'new'/'actions.jsonl'),
                          '--slam-debug-video', str(video)]

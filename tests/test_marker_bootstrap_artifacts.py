@@ -5,7 +5,7 @@ import unittest
 
 import zstandard as zstd
 
-from export_action_labels import _persist_marker_bootstrap_artifacts
+from tools.export_action_labels import _persist_marker_bootstrap_artifacts
 
 
 class MarkerBootstrapArtifactTests(unittest.TestCase):

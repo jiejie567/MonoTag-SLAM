@@ -5,6 +5,11 @@ No ArUco or MediaPipe re-analysis. A diagnostic experiment, not another backend.
 """
 from __future__ import annotations
 
+# Support direct execution from a source checkout.
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+
 import argparse
 import json
 from pathlib import Path
@@ -14,7 +19,7 @@ import time
 import numpy as np
 
 from aruco_track.models import BandLayout, Calibration
-from export_action_labels import _pose_from_output_dict, _run_deferred_head_slam, pose_to_dict
+from tools.export_action_labels import _pose_from_output_dict, _run_deferred_head_slam, pose_to_dict
 
 
 def main():

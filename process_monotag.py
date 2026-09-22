@@ -1,7 +1,7 @@
 """Validated Ubuntu MonoTag SLAM entry; ordinary exporter/Mac defaults unchanged.
 
 Use --runtime-config PATH to select an installed, hash-verified native runtime.
-All other arguments are normal export_action_labels.py arguments.
+All other arguments are normal tools/export_action_labels.py arguments.
 """
 from __future__ import annotations
 import argparse, hashlib, json, os, sys, time
@@ -144,7 +144,7 @@ def main():
     install_replay_display_assets(replay_module)
     from aruco_track import pipeline as pipeline_module
     install_static_corner_refinement(pipeline_module,corner_policy)
-    import export_action_labels as exporter
+    from tools import export_action_labels as exporter
     exporter._MONOTAG_FINAL_FRAME_ADAPTER = config.get('final_frame_adapter')
     from aruco_track.offline_gaps import install
     install(exporter,config['gap_adapter'])
@@ -164,7 +164,7 @@ def main():
     report['static_corner_schema']=STATIC_CORNER_SCHEMA if corner_policy=='apriltag' else None
     start=time.monotonic()
     try:
-        sys.argv=['export_action_labels.py',*arguments]
+        sys.argv=['tools/export_action_labels.py',*arguments]
         exporter.main();report['status']='complete'
     except SystemExit as error:
         report['status']='complete' if error.code in (None,0) else 'failed'

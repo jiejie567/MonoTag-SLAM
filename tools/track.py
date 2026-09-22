@@ -60,7 +60,7 @@ def offline_processing_command(
 ) -> list[str]:
     command = [
         sys.executable,
-        str(Path(__file__).resolve().parents[1] / "export_action_labels.py"),
+        str(Path(__file__).resolve().parents[1] / "tools/export_action_labels.py"),
         str(video),
         "--calib",
         calibration,

@@ -51,7 +51,7 @@ class ServerPipelineTests(unittest.TestCase):
             p.write_text(json.dumps(dict(enabled=False)));self.assertEqual(default_execution(),'local')
             p.write_text(json.dumps(dict(enabled=True)));self.assertEqual(default_execution(),'server')
     def test_source_package_excludes_private_and_build_data(self):
-        names=['export_action_labels.py','aruco_track/a.py','config/production.json','config/server.local.json',
+        names=['tools/export_action_labels.py','aruco_track/a.py','config/production.json','config/server.local.json',
                '.local/secret.json','models/MANO_RIGHT.pkl','input/video.mp4','output/results.json',
                'third_party/ORB_SLAM3/src/Tracking.cc','third_party/ORB_SLAM3/CMakeLists.txt',
                'third_party/ORB_SLAM3/Examples/timestamps.txt','third_party/ORB_SLAM3/lib/libORB_SLAM3.so']

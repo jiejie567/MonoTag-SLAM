@@ -288,7 +288,7 @@ class NativeTrackingLifecycleContracts(unittest.TestCase):
     def test_no_replay_batch_uses_compact_native_history(self):
         runner = (NATIVE / 'Examples/Monocular/mono_tum_headless.cc').read_text()
         backend = (ROOT / 'aruco_track/orbslam3_backend.py').read_text()
-        exporter = (ROOT / 'export_action_labels.py').read_text()
+        exporter = (ROOT / 'tools/export_action_labels.py').read_text()
         self.assertIn('ORB_SLAM3_COMPACT_HISTORY', runner)
         self.assertIn('compact_history: bool = False', backend)
         self.assertIn('compact_history=not slam_replay', exporter)

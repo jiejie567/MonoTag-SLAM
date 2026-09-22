@@ -1,4 +1,4 @@
-"""Server deployment transport; the computation remains export_action_labels.py."""
+"""Server deployment transport; the computation remains tools/export_action_labels.py."""
 from __future__ import annotations
 import hashlib
 import json
@@ -156,6 +156,6 @@ def run_remote_pipeline(args):
     (package/'local_paths.json').write_text(json.dumps(dict(inputs=uploads,server_status=status),indent=2)+'\n')
     print(f'Server complete: {output}\nReplay: {package / "actions_replay/index.html"}',flush=True)
     if args.open_replay and (package/'actions_replay/index.html').exists():
-        subprocess.Popen([sys.executable,str(ROOT/'replay_orb_slam.py'),str(package/'actions_replay')],
+        subprocess.Popen([sys.executable,str(ROOT/'tools/replay_orb_slam.py'),str(package/'actions_replay')],
                          stdout=(staging/'replay_server.log').open('w'),stderr=subprocess.STDOUT,start_new_session=True)
     return package

@@ -79,7 +79,7 @@ def main():
         files = [calibration, *map(Path,meta['bands'])]
         auto = meta['auto_marker_map']
         directory = OUT/name
-        command = [sys.executable, 'export_action_labels.py', str(video), '--calib', str(calibration),
+        command = [sys.executable, 'tools/export_action_labels.py', str(video), '--calib', str(calibration),
                    '--head-slam', '--slam-init', 'auto', '--auto-marker-map',
                    '--static-marker-ids', ','.join(map(str,auto['static_marker_ids'])),
                    '--static-marker-size-mm', str(auto['marker_size_mm']),
@@ -93,7 +93,7 @@ def main():
             input_stat=dict(size=video.stat().st_size,mtime_ns=video.stat().st_mtime_ns),
             calibration_and_layout_sha256={str(p):digest(p) for p in files},
             command=command, environment=FLAGS, status='queued', observation_cache_reused=False))
-    files = sorted((ROOT/'aruco_track').glob('*.py')) + [ROOT/'aruco_track/slam_replay.html', ROOT/'export_action_labels.py']
+    files = sorted((ROOT/'aruco_track').glob('*.py')) + [ROOT/'aruco_track/slam_replay.html', ROOT/'tools/export_action_labels.py']
     native = ROOT/'third_party/ORB_SLAM3'
     files += sorted((native/'src').glob('*.cc')) + sorted((native/'include').glob('*.h'))
     files += [native/'Examples/Monocular/mono_tum_headless',native/'lib/libORB_SLAM3.dylib']
@@ -129,7 +129,7 @@ def main():
             record['marker_events']=dict(collections.Counter(e['type']+':'+e['status'] for e in events))
             record['scale_events']=[e for e in events if e['type']=='scale_reanchor']
             with (directory/'verification.log').open('w') as log:
-                record['verification_returncode']=subprocess.call([sys.executable,'verify_slam_replay.py',str(directory/'actions_replay')],cwd=ROOT,stdout=log,stderr=subprocess.STDOUT)
+                record['verification_returncode']=subprocess.call([sys.executable,'tools/verify_slam_replay.py',str(directory/'actions_replay')],cwd=ROOT,stdout=log,stderr=subprocess.STDOUT)
             if record['name']=='odin_0909':
                 with (directory/'evaluation.log').open('w') as log:
                     record['evaluation_returncode']=subprocess.call([sys.executable,'scripts/evaluate_odin_raw_20260909.py',

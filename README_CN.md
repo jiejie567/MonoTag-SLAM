@@ -24,7 +24,7 @@ MonoTag 在 ORB-SLAM3 的自然特征地图中引入已知尺寸的 marker 角�
 - `third_party/ORB_SLAM3/`：C++ SLAM 后端。
 - `scripts/`：构建、部署和批量实验脚本；`tests/`：回归测试。
 
-原来的 `python record.py ...` 等辅助命令改为 `python tools/record.py ...`，从仓库根目录执行。根目录保留相互依赖的处理、导出和回放入口；算法及默认参数未改动。
+根目录仅保留 `process_monotag.py`。其余命令统一从 `tools/` 运行，例如 `python tools/record.py ...` 和 `python tools/render_slam_replay.py ...`；算法及默认参数未改动。
 
 ## 视频演示
 

@@ -13,7 +13,7 @@ import zstandard as zstd
 
 from aruco_track.models import BandLayout, Calibration, Pose
 from aruco_track.slam_sequence_cache import SlamSequenceCache, sequence_cache_key, sequence_cache_root, snapshot_sequence
-from export_action_labels import _marker_layouts_by_component, _run_deferred_head_slam
+from tools.export_action_labels import _marker_layouts_by_component, _run_deferred_head_slam
 
 
 class SlamSequenceCacheTests(unittest.TestCase):
@@ -283,11 +283,11 @@ class SlamSequenceCacheTests(unittest.TestCase):
         with (
             patch.dict(os.environ, {'ORB_SLAM3_OFFLINE_MARKER_BOOTSTRAP': '1'}),
             patch('aruco_track.marker_bootstrap.bootstrap_initial_marker_observations', side_effect=fake_bootstrap),
-            patch("export_action_labels.SlamSequenceCache", return_value=cache),
-            patch("export_action_labels.run_orbslam3_sequence", side_effect=fake_native),
-            patch("export_action_labels.read_native_result", side_effect=fake_result),
+            patch("tools.export_action_labels.SlamSequenceCache", return_value=cache),
+            patch("tools.export_action_labels.run_orbslam3_sequence", side_effect=fake_native),
+            patch("tools.export_action_labels.read_native_result", side_effect=fake_result),
             patch("aruco_track.orbslam3_backend.refine_final_frame_poses", side_effect=lambda result, *_args: result),
-            patch("export_action_labels.prepare_slam_frame", wraps=lambda frame, _mask: frame.copy()) as prepare,
+            patch("tools.export_action_labels.prepare_slam_frame", wraps=lambda frame, _mask: frame.copy()) as prepare,
         ):
             for run in range(2):
                 result = _run_deferred_head_slam(

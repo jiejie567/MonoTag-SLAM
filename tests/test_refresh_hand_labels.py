@@ -10,9 +10,9 @@ import numpy as np
 from aruco_track.hands import HandJointPose
 from aruco_track.hand_recovery import hand_recovery_policy
 from aruco_track.models import Calibration
-from export_action_labels import _hand_cache_requires_upgrade, _cached_raw_hands
-from refresh_hand_labels import frozen_fields, refresh_record
-from refresh_hand_labels import main as refresh_main
+from tools.export_action_labels import _hand_cache_requires_upgrade, _cached_raw_hands
+from tools.refresh_hand_labels import frozen_fields, refresh_record
+from tools.refresh_hand_labels import main as refresh_main
 
 
 def pose(t):
@@ -156,16 +156,16 @@ class RefreshHandTests(unittest.TestCase):
                             observation_cache_contract={'input_fingerprints': old_inputs})
             source.with_suffix('.meta.json').write_text(json.dumps(metadata))
             tracker = PredictedTracker()
-            with patch('sys.argv', ['refresh_hand_labels.py', str(source), '--output', str(output),
+            with patch('sys.argv', ['tools/refresh_hand_labels.py', str(source), '--output', str(output),
                                     '--hawor-config', str(config)]), \
-                    patch('refresh_hand_labels._observation_input_fingerprints',
+                    patch('tools.refresh_hand_labels._observation_input_fingerprints',
                           side_effect=[old_inputs, new_inputs]), \
-                    patch('refresh_hand_labels.load_replay_calibration', return_value=self.calibration), \
-                    patch('refresh_hand_labels.BandLayout.load') as layout, \
-                    patch('refresh_hand_labels.prepare_hawor_predictions',
+                    patch('tools.refresh_hand_labels.load_replay_calibration', return_value=self.calibration), \
+                    patch('tools.refresh_hand_labels.BandLayout.load') as layout, \
+                    patch('tools.refresh_hand_labels.prepare_hawor_predictions',
                           return_value=(Path('predictions.jsonl'), {'device': 'mps'})) as prepare, \
-                    patch('refresh_hand_labels.HaworHandTracker', return_value=tracker), \
-                    patch('refresh_hand_labels.cv2.VideoCapture') as capture:
+                    patch('tools.refresh_hand_labels.HaworHandTracker', return_value=tracker), \
+                    patch('tools.refresh_hand_labels.cv2.VideoCapture') as capture:
                 layout.return_value.name = 'left'
                 refresh_main()
             capture.assert_not_called()

@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from export_lerobot_dataset import (
+from tools.export_lerobot_dataset import (
     ACTION_NAMES, STATE_NAMES, sampled_frame_indices, training_rows,
 )
 

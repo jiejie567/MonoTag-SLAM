@@ -21,8 +21,8 @@ from aruco_track.slam_replay import (
     _draw_orb_features, _draw_world_axes, _world_axis_pixels, _smooth_world_trail, _draw_trails,
     _TrailReplayCache, pack_history, replay_camera_frame, trails_at_revision, _events,
 )
-from export_action_labels import _track_world_by_submap
-from verify_slam_replay import verify
+from tools.export_action_labels import _track_world_by_submap
+from tools.verify_slam_replay import verify
 
 
 def snapshot(index=0, state=2, x=0, metric=True):

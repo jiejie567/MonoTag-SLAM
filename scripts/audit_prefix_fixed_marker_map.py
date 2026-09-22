@@ -12,7 +12,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import export_action_labels as exporter
+from tools import export_action_labels as exporter
 from aruco_track.auto_marker_map import AutoMarkerMap, AutoMarkerSubmap
 from aruco_track.models import BandLayout, Pose
 
@@ -35,7 +35,7 @@ def main():
     layout = AutoMarkerMap(data['dictionary'], data['marker_size_mm']/1000.,
         tuple(submaps), data['mode'], tuple(data.get('pending_marker_ids', [])))
     exporter.build_auto_marker_map = lambda *args, **kwargs: layout
-    sys.argv = ['export_action_labels.py'] + sys.argv[2:]
+    sys.argv = ['tools/export_action_labels.py'] + sys.argv[2:]
     print('Controlled audit: fixed initialization layout from', source, flush=True)
     exporter.main()
 

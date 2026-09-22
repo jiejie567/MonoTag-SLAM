@@ -16,10 +16,8 @@ from aruco_track.models import Calibration
 from aruco_track.orbslam3_backend import pose_from_native
 from aruco_track.replay_browser import decode_timeline
 from aruco_track.slam_replay import write_slam_replay
-import render_slam_replay
-import verify_slam_replay
-
-
+from tools import render_slam_replay
+from tools import verify_slam_replay
 def _pose(x=.1, y=0., z=-1.):
     return {'translation_m': [x, y, z], 'quaternion_wxyz': [1., 0., 0., 0.],
             'reprojection_error_px': .2, 'marker_ids': [20]}
@@ -217,8 +215,8 @@ class HybridReplayPackageTests(unittest.TestCase):
         frames, _, _ = self.render()
         history_path = self.directory / 'native_history.jsonl'
         history_path.write_text('test history supplied by fixture')
-        with patch('verify_slam_replay.resolve_native_history_path', return_value=history_path), \
-             patch('verify_slam_replay.read_native_history', return_value=self.history):
+        with patch('tools.verify_slam_replay.resolve_native_history_path', return_value=history_path), \
+             patch('tools.verify_slam_replay.read_native_history', return_value=self.history):
             result = verify_slam_replay.verify(self.directory)
             self.assertEqual(result['verified_video_frames'], len(frames))
             for field, wrong in [('global_sequence', 1), ('process_map_revision', 9),
@@ -233,7 +231,7 @@ class HybridReplayPackageTests(unittest.TestCase):
 
 class HybridReplayCliTests(unittest.TestCase):
     def test_exporter_uses_hybrid_and_cached_final_feature_matches(self):
-        source = Path(__file__).resolve().parents[1] / 'export_action_labels.py'
+        source = Path(__file__).resolve().parents[1] / 'tools/export_action_labels.py'
         tree = ast.parse(source.read_text())
         calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
                  and isinstance(node.func, ast.Name) and node.func.id == 'write_slam_replay']
@@ -264,13 +262,13 @@ class HybridReplayCliTests(unittest.TestCase):
             originals = {path: path.read_bytes() for path in [*source.iterdir(), actions_path, metadata_path]}
             target = root / 'actions_replay_hybrid'
             history = [_snapshot(0), _snapshot(0, final=True)]
-            with patch('sys.argv', ['render_slam_replay.py', str(actions_path)]), \
-                 patch('render_slam_replay.load_replay_calibration', return_value=MagicMock()), \
-                 patch('render_slam_replay.resolve_native_history_path',
+            with patch('sys.argv', ['tools/render_slam_replay.py', str(actions_path)]), \
+                 patch('tools.render_slam_replay.load_replay_calibration', return_value=MagicMock()), \
+                 patch('tools.render_slam_replay.resolve_native_history_path',
                        return_value=source / 'native_history.jsonl'), \
-                 patch('render_slam_replay.read_native_history', return_value=history), \
-                 patch('render_slam_replay.prepare_final_replay_features', return_value={}), \
-                 patch('render_slam_replay.write_slam_replay',
+                 patch('tools.render_slam_replay.read_native_history', return_value=history), \
+                 patch('tools.render_slam_replay.prepare_final_replay_features', return_value={}), \
+                 patch('tools.render_slam_replay.write_slam_replay',
                        return_value=(target / 'process.mp4', target / 'index.html')) as render, \
                  patch('builtins.print'):
                 render_slam_replay.main()

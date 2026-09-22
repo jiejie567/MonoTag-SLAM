@@ -9,7 +9,7 @@ import numpy as np
 
 from aruco_track.models import Calibration, Pose
 from aruco_track.tag_graph import TagPoseResult
-from export_action_labels import (
+from tools.export_action_labels import (
     OBSERVATION_ALGORITHM_VERSION,
     OBSERVATION_CACHE_SCHEMA,
     _cached_tag_result,

@@ -27,8 +27,11 @@ Relative input/output paths still resolve against the working directory.
 Inspect generation scripts without argument parsers before execution.
 
 Build/deployment and batch-experiment scripts remain under `scripts/`.
-Coupled processing/export/replay entry points remain at the root to preserve
-the validated runtime entry and hash contracts.
+The only root Python entry is `process_monotag.py`. Processing/export/replay
+commands also live here: `export_action_labels.py`, `export_lerobot_dataset.py`,
+`refresh_hand_labels.py`, `render_slam_replay.py`, `replay_orb_slam.py`,
+`validate_native_sequence.py`, and `verify_slam_replay.py`.
+Python callers must import these modules through `tools`.
 
 ## 中文说明
 

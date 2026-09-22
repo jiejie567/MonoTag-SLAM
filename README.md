@@ -58,7 +58,7 @@ Maps merge at source time 187.73 s; a visual-loop update is published at 188.40 
 | `scripts/` | Build, runtime setup, evaluation and diagnostics |
 | `tools/` | Capture, calibration, marker generation and standalone utilities ([commands](tools/README.md)) |
 | `tests/` | Release tests and historical experimental tests |
-| `export_lerobot_dataset.py` | Optional validity-aware training export |
+| `tools/export_lerobot_dataset.py` | Optional validity-aware training export |
 
 Recordings, binaries, model weights, vocabulary, device-specific camera calibration and generated caches are excluded. Diagnostic scripts do not define alternative production defaults.
 
@@ -86,7 +86,7 @@ Hand networks are optional and separately licensed. SLAM-only processing needs n
   --no-hand-joints --slam-replay --save-atlas runs/demo/atlas.osa \
   --output runs/demo/actions.jsonl
 
-.venv/bin/python render_slam_replay.py runs/demo/actions.jsonl --hybrid
+.venv/bin/python tools/render_slam_replay.py runs/demo/actions.jsonl --hybrid
 ```
 
 Use your actual marker IDs, measured black-square dimensions and calibrated intrinsics. These values are examples. Each run requires a fresh output location.
