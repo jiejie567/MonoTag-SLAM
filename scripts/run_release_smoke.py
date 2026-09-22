@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 
 
 MODULES = (
+    "test_auto_process",
     "test_marker_quality",
     "test_marker_temporal_admission",
     "test_static_marker_admission_integration",

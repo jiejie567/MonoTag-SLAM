@@ -6,7 +6,7 @@ import io
 import tempfile
 from unittest.mock import patch
 
-from track import offline_processing_command
+from tools.track import offline_processing_command
 
 
 class OfflineProcessingCommandTests(unittest.TestCase):
