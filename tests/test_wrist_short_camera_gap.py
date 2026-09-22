@@ -9,7 +9,7 @@ import export_action_labels as exporter
 from aruco_track.camera_state import FusedCameraFrame
 from aruco_track.models import Calibration, Pose
 from aruco_track.tag_graph import WristTrajectoryResult, optimize_wrist_trajectory
-from make_band import band_layout
+from tools.make_band import band_layout
 
 
 class WristShortCameraGapTests(unittest.TestCase):

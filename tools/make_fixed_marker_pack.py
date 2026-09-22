@@ -3,6 +3,11 @@
 
 from __future__ import annotations
 
+# Support direct execution from a source checkout.
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+
 from io import BytesIO
 import json
 from pathlib import Path

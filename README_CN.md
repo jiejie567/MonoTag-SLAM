@@ -16,6 +16,16 @@ MonoTag 在 ORB-SLAM3 的自然特征地图中引入已知尺寸的 marker 角�
 
 本仓库名为 **MonoTag-SLAM**，算法源码已公开；完整采集系统叫 **MonoEgo**。
 
+## 目录与入口
+
+- `process_monotag.py`：正式处理入口，保持不变。
+- `tools/`：采集、标定、贴纸生成、独立回放与诊断工具，见[命令说明](tools/README.md)。
+- `aruco_track/`：Python 核心模块。
+- `third_party/ORB_SLAM3/`：C++ SLAM 后端。
+- `scripts/`：构建、部署和批量实验脚本；`tests/`：回归测试。
+
+原来的 `python record.py ...` 等辅助命令改为 `python tools/record.py ...`，从仓库根目录执行。根目录保留相互依赖的处理、导出和回放入口；算法及默认参数未改动。
+
 ## 视频演示
 
 点击预览图打开 MP4。片段来自已有离线结果，不代表实时处理速度。左下显示最终 Atlas，右下显示记录的建图过程和已提交更新；保留隐私遮挡。

@@ -7,7 +7,7 @@ import numpy as np
 from aruco_track.bandsolve import solve_band_pose
 from aruco_track.models import Pose
 from aruco_track.pipeline import marker_pose_from_band
-from make_band import band_layout
+from tools.make_band import band_layout
 
 
 class BandPoseTests(unittest.TestCase):

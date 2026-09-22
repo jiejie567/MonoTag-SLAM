@@ -56,6 +56,7 @@ Maps merge at source time 187.73 s; a visual-loop update is published at 188.40 
 | `process_monotag.py` | Hash-bound Ubuntu processing entry |
 | `config/monotag_ubuntu_profile.json` | Validated feature profile |
 | `scripts/` | Build, runtime setup, evaluation and diagnostics |
+| `tools/` | Capture, calibration, marker generation and standalone utilities ([commands](tools/README.md)) |
 | `tests/` | Release tests and historical experimental tests |
 | `export_lerobot_dataset.py` | Optional validity-aware training export |
 

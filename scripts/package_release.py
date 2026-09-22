@@ -6,7 +6,7 @@ from pathlib import Path
 import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
-DIRECTORIES = ('aruco_track', 'scripts', 'tests', 'docs', 'config', 'third_party/ORB_SLAM3')
+DIRECTORIES = ('aruco_track', 'tools', 'scripts', 'tests', 'docs', 'config', 'third_party/ORB_SLAM3')
 EXCLUDE = {'.git', '__pycache__', 'build', 'build-dbow-linux', 'lib', 'Vocabulary',
            'CMakeFiles', '.DS_Store'}
 EXTENSIONS = {'.py', '.html', '.js', '.mjs', '.css', '.json', '.yaml', '.yml', '.sh', '.txt',

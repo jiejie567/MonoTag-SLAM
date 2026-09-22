@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from audit_orb_videos import _single_frame_spikes
+from tools.audit_orb_videos import _single_frame_spikes
 
 
 class OrbAuditDiagnosticsTests(unittest.TestCase):

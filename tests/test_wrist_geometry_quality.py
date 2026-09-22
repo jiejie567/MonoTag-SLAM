@@ -1,7 +1,7 @@
 import unittest
 import numpy as np,cv2
 from aruco_track.models import Calibration,Pose
-from make_band import band_layout
+from tools.make_band import band_layout
 try:
     from aruco_track.wrist_geometry_quality import wrist_geometry_quality
 except ModuleNotFoundError:

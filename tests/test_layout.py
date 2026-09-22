@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from aruco_track.models import BandLayout, Calibration
-from make_band import band_layout
+from tools.make_band import band_layout
 
 
 class LayoutTests(unittest.TestCase):

@@ -14,7 +14,7 @@ from aruco_track.tag_graph import (
     projection_residuals,
     refine_wrist_pose_sequence,
 )
-from make_band import band_layout
+from tools.make_band import band_layout
 
 
 class TagGraphTests(unittest.TestCase):

@@ -10,4 +10,4 @@ if [[ "$(uname -s)" == "Darwin" && -d third_party/camtint ]]; then
   make -C third_party/camtint
 fi
 
-echo "Ready. Run: ./.venv/bin/python make_band.py"
+echo "Ready. Run: ./.venv/bin/python tools/make_band.py"

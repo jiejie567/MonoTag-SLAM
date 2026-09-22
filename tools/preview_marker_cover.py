@@ -2,6 +2,11 @@
 """Render an isolated low-cost cover preview from original RGB and cached labels."""
 from __future__ import annotations
 
+# Support direct execution from a source checkout.
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+
 import argparse
 import json
 from pathlib import Path
