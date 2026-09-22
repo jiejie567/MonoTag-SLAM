@@ -13,7 +13,7 @@ English | [中文](README_CN.md)
 
 MonoTag combines natural image features with known-size square markers to reconstruct metric camera motion from one RGB camera. Built on ORB-SLAM3, it uses marker corners in geometric optimization, revisits earlier frames offline, and maintains an Atlas across multiple maps.
 
-**MonoTag-SLAM** hosts the backend; **MonoEgo** is the complete capture system. This is a prepared source release, currently private.
+**MonoTag-SLAM** hosts the publicly available backend; **MonoEgo** is the complete capture system.
 
 ## Video demonstrations
 
