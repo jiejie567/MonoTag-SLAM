@@ -31,8 +31,8 @@ MonoTag 在 ORB-SLAM3 的自然特征地图中引入已知尺寸的 marker 角�
 重建在 Ubuntu 24.04 上验证。先按[安装说明](docs/INSTALL.md)准备原生依赖和 ORB 词袋：
 
 ```bash
-git clone https://github.com/jiejie567/EgoMono.git
-cd EgoMono
+git clone https://github.com/jiejie567/MonoTag-SLAM.git
+cd MonoTag-SLAM
 make setup
 make native DEPS_PREFIX=/path/to/dependencies
 .venv/bin/python scripts/init_runtime.py \

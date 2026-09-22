@@ -44,8 +44,8 @@ Recordings, binaries, model weights, vocabulary, device-specific camera calibrat
 Ubuntu 24.04 is the validated reconstruction platform. Follow the [installation guide](docs/INSTALL.md) to provision OpenCV/Pangolin and vocabulary before building:
 
 ```bash
-git clone https://github.com/jiejie567/EgoMono.git
-cd EgoMono
+git clone https://github.com/jiejie567/MonoTag-SLAM.git
+cd MonoTag-SLAM
 make setup
 make native DEPS_PREFIX=/path/to/dependencies
 .venv/bin/python scripts/init_runtime.py \
