@@ -5,7 +5,7 @@
 
 <a href="https://anyverse.com/"><img src="docs/images/anyverse-dynamics-logo.png" width="280" alt="Anyverse Dynamics"></a>
 
-[Project homepage](https://monoego.jiejie567.chatgpt.site) · [Capture system & hardware](https://github.com/jiejie567/MonoEgo) · [Installation](docs/INSTALL.md) · [Reproducibility](REPRODUCIBILITY.md)
+[Project homepage](https://jiejie567.github.io/MonoEgo/) · [Capture system & hardware](https://github.com/jiejie567/MonoEgo) · [Installation](docs/INSTALL.md) · [Reproducibility](REPRODUCIBILITY.md)
 
 </div>
 
